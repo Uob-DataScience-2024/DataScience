@@ -1,1 +1,10 @@
 loguru
+numpy
+torch
+torchvision
+tqdm
+rich
+matplotlib
+scipy
+opencv-python
+gradio
