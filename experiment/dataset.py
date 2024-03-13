@@ -10,6 +10,7 @@ class DatasetPffBlockType(Dataset):
         self.data_dir = data_dir
         self.pff_filename = pff_filename
         self.tracking_filename = tracking_filename
+        self.final_data = {}
         self.raw_data = {
             'pff': self.load_pff_data(),
             'tracking': self.load_tracking_data()
@@ -35,29 +36,44 @@ class DatasetPffBlockType(Dataset):
                 'pff': self.raw_data['pff'][self.raw_data['pff']['gameId'] == game],
                 'tracking': self.raw_data['tracking'][self.raw_data['tracking']['gameId'] == game]
             }
-        final_data = {game: {} for game in data_in_each_game}
-        t_list = []
+        self.final_data = {game: {} for game in data_in_each_game}
         for game, data in data_in_each_game.items():
-            # 将 playId和nflid组合成一个新的id，然后判断这个id是否有重复
+            pff = data['pff'].copy()
+            tracking = data['tracking'].copy()
+            # create union id by combining nflId and playId for tracking data and pff data
+            # remove na for nflId and playId
+            tracking = tracking.dropna(subset=['nflId', 'playId'])
+            pff = pff.dropna(subset=['nflId', 'playId'])
+            tracking['union_id'] = tracking['nflId'].astype(int).astype(str) + '_' + tracking['playId'].astype(int).astype(str)
+            pff['union_id'] = pff['nflId'].astype(int).astype(str) + '_' + pff['playId'].astype(int).astype(str)
+            # create a new dataframe that concat tracking and pff data columns
+            # and copy the pff data to each line which have same union_id, because the pff data is less than tracking data
+            # so we need to copy the pff data to each line which have same union_id
+            result = tracking.merge(pff, on='union_id', how='left')
+            self.final_data[game] = result
+        #     # 将 playId和nflid组合成一个新的id，然后判断这个id是否有重复
+        #
+        #     tracking = data['tracking']
+        #     # 1. 选出tracking中的nflId和playId
+        #     tracking = tracking[['nflId', 'playId']]
+        #     # 2. 将nflId和playId组合成一个新的id
+        #     tracking['id'] = tracking['nflId'].astype(str) + '_' + tracking['playId'].astype(str)
+        #     # 3. 判断id是否有重复
+        #     tracking['is_duplicate'] = tracking.duplicated('id')
+        #     tracking['is_nfl_duplicate'] = tracking.duplicated('nflId')
+        #     # 4. 选出一组有相同新id的数据demo，然后获取在原先数据中的对应条目
+        #     demo_id = tracking[tracking['is_duplicate'] == True].iloc[0]['id']
+        #     demo = tracking[tracking['id'] == demo_id]
+        #     src_demo = data['tracking'][(data['tracking']['nflId'] == demo.iloc[0]['nflId']) & (data['tracking']['playId'] == demo.iloc[0]['playId'])]
+        #     # time example: 2021-09-10T00:26:31.100
+        #     first_date = datetime.strptime(src_demo.iloc[0]['time'], '%Y-%m-%dT%H:%M:%S.%f')
+        #     last_date = datetime.strptime(src_demo.iloc[-1]['time'], '%Y-%m-%dT%H:%M:%S.%f')
+        #     t = (last_date - first_date).total_seconds()
+        #     t_list.append(t)
+        # print('max time:', max(t_list))
+        # print('min time:', min(t_list))
+        # print('mean time:', sum(t_list) / len(t_list))
 
-            tracking = data['tracking']
-            # 1. 选出tracking中的nflId和playId
-            tracking = tracking[['nflId', 'playId']]
-            # 2. 将nflId和playId组合成一个新的id
-            tracking['id'] = tracking['nflId'].astype(str) + '_' + tracking['playId'].astype(str)
-            # 3. 判断id是否有重复
-            tracking['is_duplicate'] = tracking.duplicated('id')
-            tracking['is_nfl_duplicate'] = tracking.duplicated('nflId')
-            # 4. 选出一组有相同新id的数据demo，然后获取在原先数据中的对应条目
-            demo_id = tracking[tracking['is_duplicate'] == True].iloc[0]['id']
-            demo = tracking[tracking['id'] == demo_id]
-            src_demo = data['tracking'][(data['tracking']['nflId'] == demo.iloc[0]['nflId']) & (data['tracking']['playId'] == demo.iloc[0]['playId'])]
-            # time example: 2021-09-10T00:26:31.100
-            first_date = datetime.strptime(src_demo.iloc[0]['time'], '%Y-%m-%dT%H:%M:%S.%f')
-            last_date = datetime.strptime(src_demo.iloc[-1]['time'], '%Y-%m-%dT%H:%M:%S.%f')
-            t = (last_date - first_date).total_seconds()
-            t_list.append(t)
-        print('max time:', max(t_list))
-        print('min time:', min(t_list))
-        print('mean time:', sum(t_list) / len(t_list))
+    def statistics(self):
 
+        pass
