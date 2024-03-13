@@ -4,11 +4,11 @@
 This project is a part of the coursework for the Applied Data Science module in the third year at the University of Bristol. Our team is tasked with working on the dataset from the NFL Big Data Bowl. The key objectives include exploring the dataset, performing data visualization, and ultimately preparing a comprehensive report.
 
 ## Team Members
-- Roy Chen - ky20336@bristol.ac.uk
-- Stephen Chen - uv21031@bristol.ac.uk
-- Guy Anderson - qh21842@bristol.ac.uk
-- James Jones - gw21491@bristol.ac.uk
-- Toby Smith - ja20665@bristol.ac.uk
+- Roy Chen - ky20336@bristol.ac.uk - @Dorrrrrrrr
+- Stephen Chen - uv21031@bristol.ac.uk - @Dusk Xi
+- Guy Anderson - qh21842@bristol.ac.uk - @GuyAnderson1
+- James Jones - gw21491@bristol.ac.uk - @TheVenomousJam
+- Toby Smith - ja20665@bristol.ac.uk - @toby-smith
 
 ## Technical Stack
 The primary programming language used in this project is Python. We are utilizing a range of machine learning and neural network libraries, including PyTorch, to analyze and process the dataset effectively. As the project evolves, we may incorporate additional tools and technologies to enhance our analysis and reporting capabilities.
