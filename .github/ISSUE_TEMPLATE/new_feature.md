@@ -22,9 +22,11 @@ assignees: ''
 
 ## What is the issue related to?
 
-- [ ] Front end
-- [ ] Back end
-- [ ] Deployment
+- [ ] Basic Data Processing
+- [ ] Machine Learning/Artificial Intelligence
+- [ ] Data Visualization
+- [ ] Data Analysis
+- [ ] Technical Integrated
 - [ ] Other
 
 ## What is the expected behavior?
