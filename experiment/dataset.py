@@ -98,3 +98,13 @@ class DatasetPffBlockType(Dataset):
             'pff_available_rate': pff_available / total_lines,
             'pff_blockType_available_rate': pff_blockType_available / total_lines
         }
+
+    def get_column(self):
+        # return the column dict, key: name, value: type
+        return {col: self.final_data[list(self.final_data.keys())[0]][col].dtype for col in self.final_data[list(self.final_data.keys())[0]].columns}
+
+    def get_category(self, category):
+        d = []
+        for game, data in self.final_data.items():
+            d.extend(data[category].unique())
+        return list(set(d))

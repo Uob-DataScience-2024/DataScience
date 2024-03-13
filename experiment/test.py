@@ -22,6 +22,18 @@ class Experiment(unittest.TestCase):
             logger.info(f'{key}: {value}')
         self.assertEqual(True, True)
 
+    def test_category(self):
+        dataset = DatasetPffBlockType(data_dir)
+        columns = dataset.get_column()
+        for key, value in columns.items():
+            if key == "union_id" or key == 'time':
+                continue
+            if value.name == 'string' or value.name == 'category' or value.name == 'object':
+                category = dataset.get_category(key)
+                logger.info(f"len of category[{key}]: {len(category)}")
+                logger.info(f"category: {category}")
+        self.assertEqual(True, True)
+
 
 if __name__ == '__main__':
     unittest.main()
