@@ -6,7 +6,7 @@ import pandas as pd
 
 
 class DatasetPffBlockType(Dataset):
-    def __init__(self, data_dir, pff_filename='pffScoutingData.csv', tracking_filename='week{}.csv'):
+    def __init__(self, data_dir, pff_filename='pffScoutingData.csv', tracking_filename='week{}.csv', cache=False):
         self.data_dir = data_dir
         self.pff_filename = pff_filename
         self.tracking_filename = tracking_filename
@@ -15,7 +15,7 @@ class DatasetPffBlockType(Dataset):
             'pff': self.load_pff_data(),
             'tracking': self.load_tracking_data()
         }
-        self.postprocess()
+        self.postprocess(cache)
 
     def load_pff_data(self):
         return pd.read_csv(os.path.join(self.data_dir, self.pff_filename))
@@ -29,7 +29,24 @@ class DatasetPffBlockType(Dataset):
         # concat all the dataframes
         return pd.concat(datas, ignore_index=True)
 
-    def postprocess(self):
+    def load_cache(self):
+        if not os.path.exists(os.path.join(self.data_dir, 'cache') or not os.path.isdir(os.path.join(self.data_dir, 'cache'))):
+            os.mkdir(os.path.join(self.data_dir, 'cache'))
+        for game in self.final_data.keys():
+            cache_file = os.path.join(self.data_dir, 'cache', f'{game}.csv')
+            if os.path.exists(cache_file) and os.path.isfile(cache_file):
+                self.final_data[game] = pd.read_csv(cache_file)
+            else:
+                return False
+        return True
+
+    def save_cache(self):
+        if not os.path.exists(os.path.join(self.data_dir, 'cache') or not os.path.isdir(os.path.join(self.data_dir, 'cache'))):
+            os.mkdir(os.path.join(self.data_dir, 'cache'))
+        for game, data in self.final_data.items():
+            data.to_csv(os.path.join(self.data_dir, 'cache', f'{game}.csv'), index=False)
+
+    def postprocess(self, cache=False):
         data_in_each_game = {game: {} for game in self.raw_data['tracking']['gameId'].unique()}
         for game in data_in_each_game:
             data_in_each_game[game] = {
@@ -37,6 +54,9 @@ class DatasetPffBlockType(Dataset):
                 'tracking': self.raw_data['tracking'][self.raw_data['tracking']['gameId'] == game]
             }
         self.final_data = {game: {} for game in data_in_each_game}
+        if cache:
+            if self.load_cache():
+                return
         for game, data in data_in_each_game.items():
             pff = data['pff'].copy()
             tracking = data['tracking'].copy()
@@ -51,6 +71,8 @@ class DatasetPffBlockType(Dataset):
             # so we need to copy the pff data to each line which have same union_id
             result = tracking.merge(pff, on='union_id', how='left')
             self.final_data[game] = result
+        if cache:
+            self.save_cache()
         #     # 将 playId和nflid组合成一个新的id，然后判断这个id是否有重复
         #
         #     tracking = data['tracking']
