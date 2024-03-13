@@ -1,9 +1,13 @@
+import os
 import unittest
 from loguru import logger
 
 from dataset import DatasetPffBlockType
 
 data_dir = '../data'
+if len(list(filter(lambda x: x.endswith('.csv'), os.listdir(data_dir)))) == 0:
+    logger.warning('No csv file found in data directory, now run test data')
+    data_dir = '../test_data'
 
 
 class Experiment(unittest.TestCase):
