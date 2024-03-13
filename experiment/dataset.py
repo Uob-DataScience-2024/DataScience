@@ -1,6 +1,7 @@
 import os.path
 from datetime import datetime
 
+from loguru import logger
 from torch.utils.data import Dataset
 import pandas as pd
 
@@ -55,8 +56,10 @@ class DatasetPffBlockType(Dataset):
             }
         self.final_data = {game: {} for game in data_in_each_game}
         if cache:
+            logger.info('use cache')
             if self.load_cache():
                 return
+            logger.info('cache not found, start to process data')
         for game, data in data_in_each_game.items():
             pff = data['pff'].copy()
             tracking = data['tracking'].copy()

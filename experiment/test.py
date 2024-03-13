@@ -17,7 +17,7 @@ class Experiment(unittest.TestCase):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         logger.info(f"data_dir: {data_dir}")
-        self.dataset = DatasetPffBlockType(data_dir)
+        self.dataset = DatasetPffBlockType(data_dir, cache=True)
         logger.info(f"Dataset loaded")
 
     def test_dataset(self):
