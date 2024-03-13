@@ -108,3 +108,9 @@ class DatasetPffBlockType(Dataset):
         for game, data in self.final_data.items():
             d.extend(data[category].unique())
         return list(set(d))
+
+    def __len__(self):
+        return sum([len(self.final_data[game]) for game in self.final_data])
+
+    def __getitem__(self, idx):
+        return []
