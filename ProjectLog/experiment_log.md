@@ -25,11 +25,5 @@
      - *在每场比赛的追踪数据中，nflid+playid`不能`作为唯一标识符*
      - *在每场比赛的球探数据中，gameid+playid`可以`作为唯一标识符，不会在一场比赛中重复*
 
----
 
-# English
-
----
-
-## Experiment log:
 
