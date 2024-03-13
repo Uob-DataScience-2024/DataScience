@@ -7,13 +7,15 @@ assignees: ''
 
 ---
 
-# Feature Issue
+# Plan Issue
 
-## What this issue plans to do?
+## What plan created by this issue?
 
-- [ ] Create a new feature
-- [ ] Change an existing feature
-- [ ] Fix a bug
+## Plan Details Classify
+
+- [ ] Experiment
+- [ ] Rebuilt
+- [ ] Development New Technology
 - [ ] Other
 
 ## What is the issue related to?
