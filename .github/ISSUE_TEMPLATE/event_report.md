@@ -1,8 +1,8 @@
 ---
 name: Event Report
 about: Create a report to help us improve or track the process
-title: "[Event]: "
-labels: "event"
+title: ''
+labels: ''
 assignees: ''
 
 ---
