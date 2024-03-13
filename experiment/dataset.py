@@ -75,5 +75,26 @@ class DatasetPffBlockType(Dataset):
         # print('mean time:', sum(t_list) / len(t_list))
 
     def statistics(self):
+        # statistics target:
+        # 1. pff available rate
+        # 2. pff_blockType available rate
+        # 3. number of games
+        # 4. number of data
 
-        pass
+        number_of_games = len(self.final_data)
+        number_of_data = sum([len(self.final_data[game]) for game in self.final_data])
+        pff_available = 0
+        pff_blockType_available = 0
+        total_lines = 0
+        for game, data in self.final_data.items():
+            total_lines += len(data)
+            pff_available += data.dropna(subset=['pff_role']).shape[0]
+            pff_blockType_available += data.dropna(subset=['pff_blockType']).shape[0]
+        return {
+            # 'raw_pff_available_rate': raw_pff_available_rate,
+            # 'raw_pff_blockType_available_rate': raw_pff_blockType_available_rate,
+            'number_of_games': number_of_games,
+            'number_of_data': number_of_data,
+            'pff_available_rate': pff_available / total_lines,
+            'pff_blockType_available_rate': pff_blockType_available / total_lines
+        }
