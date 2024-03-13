@@ -2,3 +2,4 @@
 /.idea
 /data/*.csv
 /data/cache/*.csv
+/data/cache/*.json

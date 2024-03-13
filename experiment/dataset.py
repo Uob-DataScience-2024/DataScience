@@ -1,3 +1,4 @@
+import json
 import os.path
 from datetime import datetime
 
@@ -33,6 +34,15 @@ class DatasetPffBlockType(Dataset):
     def load_cache(self):
         if not os.path.exists(os.path.join(self.data_dir, 'cache') or not os.path.isdir(os.path.join(self.data_dir, 'cache'))):
             os.mkdir(os.path.join(self.data_dir, 'cache'))
+        try:
+            with open(os.path.join(self.data_dir, 'cache', 'cache_list.json'), 'r') as f:
+                cache_list = json.load(f)
+                self.final_data = {game.split('.')[0]: {} for game in cache_list}
+        except FileNotFoundError:
+            return False
+        csvs = [f for f in os.listdir(os.path.join(self.data_dir, 'cache')) if f.endswith('.csv')]
+        if len(csvs) != len(cache_list):
+            return False
         for game in self.final_data.keys():
             cache_file = os.path.join(self.data_dir, 'cache', f'{game}.csv')
             if os.path.exists(cache_file) and os.path.isfile(cache_file):
@@ -44,10 +54,18 @@ class DatasetPffBlockType(Dataset):
     def save_cache(self):
         if not os.path.exists(os.path.join(self.data_dir, 'cache') or not os.path.isdir(os.path.join(self.data_dir, 'cache'))):
             os.mkdir(os.path.join(self.data_dir, 'cache'))
+        names = [f'{game}.csv' for game in self.final_data]
+        with open(os.path.join(self.data_dir, 'cache', 'cache_list.json'), 'w') as f:
+            json.dump(names, f, indent=4)
         for game, data in self.final_data.items():
             data.to_csv(os.path.join(self.data_dir, 'cache', f'{game}.csv'), index=False)
 
     def postprocess(self, cache=False):
+        if cache:
+            logger.info('use cache')
+            if self.load_cache():
+                return
+            logger.info('cache not found, start to process data')
         data_in_each_game = {game: {} for game in self.raw_data['tracking']['gameId'].unique()}
         for game in data_in_each_game:
             data_in_each_game[game] = {
@@ -55,11 +73,6 @@ class DatasetPffBlockType(Dataset):
                 'tracking': self.raw_data['tracking'][self.raw_data['tracking']['gameId'] == game]
             }
         self.final_data = {game: {} for game in data_in_each_game}
-        if cache:
-            logger.info('use cache')
-            if self.load_cache():
-                return
-            logger.info('cache not found, start to process data')
         for game, data in data_in_each_game.items():
             pff = data['pff'].copy()
             tracking = data['tracking'].copy()
