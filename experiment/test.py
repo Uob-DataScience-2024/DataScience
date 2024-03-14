@@ -50,6 +50,12 @@ class Experiment(unittest.TestCase):
             logger.info(f"{key}: {value}")
         self.assertEqual(True, True)
 
+    def test_all_item(self):
+        # dataset = DatasetPffBlockType(data_dir)
+        for item in self.dataset:
+            logger.info(f"item: {item[0].shape, item[1].shape}")
+        self.assertEqual(True, True)
+
 
 class ModelTest(unittest.TestCase):
     def test_model_init(self):
