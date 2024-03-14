@@ -8,7 +8,18 @@
 ## Experimemt: Implementing Exploratory Work on PFF Block Type Data
 
 - Experiment Summary: Develop a classifier model to carry out predictions on PFF block type data
-- Experiment Results:
+- Experiment Results: Successful
+- Experiment Conclusions:
+    - Identifier-related:
+        - `gameid` is the unique identifier for each game.
+        - `nflid` is the unique identifier for each player.
+        - `playid` is not unique in the tracking data for each game.
+        - *In the tracking data for each game, `nflid+playid` **cannot** be used as a unique identifier.*
+        - *In the scouting data for each game, `nflid+playid` **can** be used as a unique identifier and does not repeat within a single game.*
+        - When selecting the same `playid+gameid` in the tracking data of the same game, it is observed that `frameId` is a continuous number, suggesting that `playId` may represent a phase in the game, as the corresponding timestamps span only about `3.821s` on average (with a maximum of `8s` and a minimum of `2.6s`).
+        - **Therefore, based on the above facts, it can be concluded that the `nflid+playid` composite ID from the scouting data of each game can correspond to a time period in the game, averaging only `3.8` seconds. This is reasonable and a viable method of data association.**
+- Experiment Analysis: The experiment implemented a sequence-to-sequence neural network using an encoder-decoder structure formed by two LSTMs. Preliminary global accuracy reached 75% (in a sequence-to-sequence classification task), indicating that the neural network requires further optimization.
+
 
 ---
 
