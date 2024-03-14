@@ -2,13 +2,22 @@ import json
 import os.path
 from datetime import datetime
 
+import numpy as np
+import torch
 from loguru import logger
 from torch.utils.data import Dataset
 import pandas as pd
+from torchvision.transforms import transforms
+import torch.nn.functional as F
 
 
 class DatasetPffBlockType(Dataset):
-    def __init__(self, data_dir, pff_filename='pffScoutingData.csv', tracking_filename='week{}.csv', cache=False):
+    def __init__(self, data_dir, pff_filename='pffScoutingData.csv', tracking_filename='week{}.csv', cache=False,
+                 x_col=['nflId_x', 'frameId', 'jerseyNumber', 'team', 'playDirection', 'x', 'y', 's', 'a', 'dis', 'o', 'dir'],
+                 x_category_col=['nflId_x', 'jerseyNumber', 'team', 'playDirection'],
+                 x_self_category_col=['nflId_x', 'team'],
+                 y_col='pff_blockType'):
+        self.category_table = None
         self.data_dir = data_dir
         self.pff_filename = pff_filename
         self.tracking_filename = tracking_filename
@@ -18,6 +27,16 @@ class DatasetPffBlockType(Dataset):
             'tracking': self.load_tracking_data()
         }
         self.postprocess(cache)
+        self.total_data = [self.final_data[game] for game in self.final_data]
+        self.x_col = x_col
+        self.x_category_col = x_category_col
+        self.x_self_category_col = x_self_category_col
+        self.y_col = y_col
+        self.transform = transforms.Compose([
+            transforms.ToTensor(),
+            transforms.Normalize((0.5,), (0.5,))
+        ])
+        self.build_category_table()
 
     def load_pff_data(self):
         return pd.read_csv(os.path.join(self.data_dir, self.pff_filename))
@@ -141,14 +160,47 @@ class DatasetPffBlockType(Dataset):
         # return the column dict, key: name, value: type
         return {col: self.final_data[list(self.final_data.keys())[0]][col].dtype for col in self.final_data[list(self.final_data.keys())[0]].columns}
 
-    def get_category(self, category):
+    def get_categories(self, category):
         d = []
         for game, data in self.final_data.items():
             d.extend(data[category].unique())
         return list(set(d))
 
+    def build_category_table(self):
+        # build category table for each category column
+        category_table = {}
+        for col in self.x_col + [self.y_col]:
+            if col in self.x_category_col or col == self.y_col:
+                category_table[col] = self.get_categories(col)
+                # if nan in the category, move to the first
+                if np.nan in category_table[col]:
+                    category_table[col].remove(np.nan)
+                    category_table[col].sort()
+                    category_table[col].insert(0, np.nan)
+                else:
+                    category_table[col].sort()
+        self.category_table = category_table
+        return category_table
+
     def __len__(self):
-        return sum([len(self.final_data[game]) for game in self.final_data])
+        return len(self.total_data)
 
     def __getitem__(self, idx):
-        return []
+        data = self.total_data[idx]
+        category_table = {}
+        results = []
+        for name in self.x_col:
+            if name in self.x_category_col:
+                if name in self.x_self_category_col:
+                    results.append(data[name].astype('category').cat.codes)
+                else:
+                    results.append(pd.Categorical(data[name], categories=self.category_table[name]).codes)
+            else:
+                results.append(data[name])
+        raw_label = data[self.y_col].to_numpy().tolist()
+        nans = [np.nan, float('nan')]
+        label = [self.category_table[self.y_col].index(i) if type(i) == str else 0 for i in raw_label]
+        results = torch.tensor(np.array(results).T, dtype=torch.float32)
+        label = torch.tensor(np.array(label))
+        # results = self.transform(results)
+        return results, F.one_hot(label.long(), num_classes=len(self.category_table[self.y_col])).to(torch.float32)

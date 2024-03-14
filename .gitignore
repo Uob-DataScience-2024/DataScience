@@ -3,3 +3,4 @@
 /data/*.csv
 /data/cache/*.csv
 /data/cache/*.json
+/test_data/cache

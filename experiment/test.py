@@ -38,9 +38,16 @@ class Experiment(unittest.TestCase):
             if key == "union_id" or key == 'time':
                 continue
             if value.name == 'string' or value.name == 'category' or value.name == 'object':
-                category = self.dataset.get_category(key)
+                category = self.dataset.get_categories(key)
                 logger.info(f"len of category[{key}]: {len(category)}")
                 logger.info(f"category: {category}")
+        self.assertEqual(True, True)
+
+    def test_category_table(self):
+        # dataset = DatasetPffBlockType(data_dir)
+        category_table = self.dataset.build_category_table()
+        for key, value in category_table.items():
+            logger.info(f"{key}: {value}")
         self.assertEqual(True, True)
 
 
