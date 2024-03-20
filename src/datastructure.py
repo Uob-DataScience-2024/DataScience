@@ -1,4 +1,7 @@
+import re
 from datetime import datetime
+
+import pandas as pd
 
 
 class TrackingDataItem:
@@ -39,3 +42,18 @@ class TrackingDataItem:
             setattr(self, key, value)
         for key, value in text_payload.items():
             setattr(self, key, value)
+
+
+class GameTrackingData:
+    def __init__(self, game_id: int, date_start: datetime, date_end: datetime, week: str, df: pd.DataFrame):
+        self.game_id = game_id
+        self.date_start = date_start
+        self.date_end = date_end
+        self.week = week
+        self.df = df
+
+    @staticmethod
+    def load(filename):
+        week = re.search(r'week(\d+)', filename).group(1)
+        week = str(int(week))
+        df = pd.read_csv(filename)
