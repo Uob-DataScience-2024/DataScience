@@ -32,13 +32,14 @@ class MainTest(unittest.TestCase):
         text_list = list(filter((lambda x: not pd.api.types.is_numeric_dtype(x[1]) and x[0] not in TrackingDataItem.no_payload_columns.values()), headers.items()))
         no_payload_columns = list(TrackingDataItem.no_payload_columns.items())
         items = []
-        for i, line in tqdm(df.iterrows(), total=len(df)):
+        max_out = 10 ** 4
+        for i, line in tqdm(df.iterrows(), total=max_out):
             args = {arg_name: line[col_name] for arg_name, col_name in no_payload_columns}
             args['number_payload'] = {col_name: line[col_name] for col_name, dtype in number_list}
             args['text_payload'] = {col_name: line[col_name] for col_name, dtype in text_list}
             item = TrackingDataItem(week, **args)
             items.append(item)
-            if i > 10 ** 4:
+            if i >= max_out:
                 break
         self.assertEqual(True, True)  # add assertion here
 
