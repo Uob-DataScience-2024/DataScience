@@ -59,4 +59,4 @@
 - 实验结果: 不如LSTM/GRU
 - 实验结论:
   - 实施Transformer模型后，发现在训练过程中，模型收敛速度较慢，且准确率提升较慢
-  - 由于Transformer模型的特性，可能不适合当前的数据集，因此，不如LSTM/GRU模型
+  - 由于Transformer模型的特性，可能不适合当前的数据集，因此，不如LSTM/GRU模型![img_2.png](images%2Fimg_2.png)
