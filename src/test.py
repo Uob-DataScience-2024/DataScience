@@ -50,7 +50,7 @@ class MainTest(unittest.TestCase):
         test_week_file = os.path.join(data_dir, test_week_file)
         loaded = GameTrackingData.load(test_week_file)
         data = loaded[list(loaded.keys())[0]]
-        item1 = data[0]
+        item = data[0]
         self.assertEqual(True, True)
 
 
