@@ -51,9 +51,34 @@ class GameTrackingData:
         self.date_end = date_end
         self.week = week
         self.df = df
+        columns = df.columns
+        headers = {}  # save the type of each column
+        for column in columns:
+            headers[column] = df[column].dtype
+        self.number_list = list(filter((lambda x: pd.api.types.is_numeric_dtype(x[1]) and x[0] not in TrackingDataItem.no_payload_columns.values()), headers.items()))
+        self.text_list = list(filter((lambda x: not pd.api.types.is_numeric_dtype(x[1]) and x[0] not in TrackingDataItem.no_payload_columns.values()), headers.items()))
+        self.no_payload_columns = list(TrackingDataItem.no_payload_columns.items())
 
     @staticmethod
     def load(filename):
         week = re.search(r'week(\d+)', filename).group(1)
         week = str(int(week))
         df = pd.read_csv(filename)
+        df['time'] = pd.to_datetime(df['time'])
+        loaded = {}
+        for game_id in df['gameId'].unique():
+            sub_df = df[df['gameId'] == game_id]
+            date_start = sub_df['time'].min()
+            date_end = sub_df['time'].max()
+            loaded[game_id] = GameTrackingData(game_id, date_start, date_end, week, sub_df)
+        return loaded
+
+    def __len__(self):
+        return len(self.df)
+
+    def __getitem__(self, idx):
+        line = self.df.iloc[idx]
+        args = {arg_name: line[col_name] for arg_name, col_name in self.no_payload_columns}
+        args['number_payload'] = {col_name: line[col_name] for col_name, dtype in self.number_list}
+        args['text_payload'] = {col_name: line[col_name] for col_name, dtype in self.text_list}
+        return TrackingDataItem(self.week, **args)

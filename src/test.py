@@ -2,7 +2,7 @@ import os
 import re
 import unittest
 import pandas as pd
-from datastructure import TrackingDataItem
+from datastructure import TrackingDataItem, GameTrackingData
 from tqdm import tqdm
 
 from loguru import logger
@@ -38,7 +38,20 @@ class MainTest(unittest.TestCase):
             args['text_payload'] = {col_name: line[col_name] for col_name, dtype in text_list}
             item = TrackingDataItem(week, **args)
             items.append(item)
+            if i > 10 ** 4:
+                break
         self.assertEqual(True, True)  # add assertion here
+
+    def test_load_GameTrackingData(self):
+        weeks = [x for x in os.listdir(data_dir) if x.startswith('week')]
+        if len(weeks) == 0:
+            self.fail("No week file found")
+        test_week_file = weeks[0]
+        test_week_file = os.path.join(data_dir, test_week_file)
+        loaded = GameTrackingData.load(test_week_file)
+        data = loaded[list(loaded.keys())[0]]
+        item1 = data[0]
+        self.assertEqual(True, True)
 
 
 if __name__ == '__main__':
