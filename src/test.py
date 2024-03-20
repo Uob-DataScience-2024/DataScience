@@ -29,13 +29,13 @@ class MainTest(unittest.TestCase):
         for column in columns:
             headers[column] = df[column].dtype
         no_payload_columns = TrackingDataItem.no_payload_columns
+        number_list = list(filter((lambda x: pd.api.types.is_numeric_dtype(x[1]) and x[0] not in no_payload_columns.values()), headers.items()))
+        text_list = list(filter((lambda x: not pd.api.types.is_numeric_dtype(x[1]) and x[0] not in no_payload_columns.values()), headers.items()))
         items = []
         for i, line in tqdm(df.iterrows(), total=len(df)):
             args = {arg_name: line[col_name] for arg_name, col_name in no_payload_columns.items()}
-            args['number_payload'] = {col_name: line[col_name] for col_name, dtype in
-                                      filter((lambda x: pd.api.types.is_numeric_dtype(x[1]) and x[0] not in no_payload_columns.values()), headers.items())}
-            args['text_payload'] = {col_name: line[col_name] for col_name, dtype in
-                                    filter((lambda x: not pd.api.types.is_numeric_dtype(x[1]) and x[0] not in no_payload_columns.values()), headers.items())}
+            args['number_payload'] = {col_name: line[col_name] for col_name, dtype in number_list}
+            args['text_payload'] = {col_name: line[col_name] for col_name, dtype in text_list}
             item = TrackingDataItem(week, **args)
             items.append(item)
         self.assertEqual(True, True)  # add assertion here
