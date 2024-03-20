@@ -2,7 +2,7 @@ import os
 import re
 import unittest
 import pandas as pd
-from datastructure import TrackingDataItem, GameTrackingData
+from trackingdata import TrackingDataItem, GameTrackingData
 from tqdm import tqdm
 
 from loguru import logger
