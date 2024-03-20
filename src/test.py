@@ -28,12 +28,12 @@ class MainTest(unittest.TestCase):
         headers = {}  # save the type of each column
         for column in columns:
             headers[column] = df[column].dtype
-        no_payload_columns = TrackingDataItem.no_payload_columns
-        number_list = list(filter((lambda x: pd.api.types.is_numeric_dtype(x[1]) and x[0] not in no_payload_columns.values()), headers.items()))
-        text_list = list(filter((lambda x: not pd.api.types.is_numeric_dtype(x[1]) and x[0] not in no_payload_columns.values()), headers.items()))
+        number_list = list(filter((lambda x: pd.api.types.is_numeric_dtype(x[1]) and x[0] not in TrackingDataItem.no_payload_columns.values()), headers.items()))
+        text_list = list(filter((lambda x: not pd.api.types.is_numeric_dtype(x[1]) and x[0] not in TrackingDataItem.no_payload_columns.values()), headers.items()))
+        no_payload_columns = list(TrackingDataItem.no_payload_columns.items())
         items = []
         for i, line in tqdm(df.iterrows(), total=len(df)):
-            args = {arg_name: line[col_name] for arg_name, col_name in no_payload_columns.items()}
+            args = {arg_name: line[col_name] for arg_name, col_name in no_payload_columns}
             args['number_payload'] = {col_name: line[col_name] for col_name, dtype in number_list}
             args['text_payload'] = {col_name: line[col_name] for col_name, dtype in text_list}
             item = TrackingDataItem(week, **args)
