@@ -4,7 +4,7 @@ import unittest
 import torch
 from loguru import logger
 
-from dataset import DatasetPffBlockType
+from dataset import DatasetPffBlockType, DatasetPffBlockTypeAutoSpilt
 from model import Seq2Seq
 
 data_dir = '../data'
@@ -54,6 +54,28 @@ class Experiment(unittest.TestCase):
         # dataset = DatasetPffBlockType(data_dir)
         for item in self.dataset:
             logger.info(f"item: {item[0].shape, item[1].shape}")
+        self.assertEqual(True, True)
+
+
+class NewDatasetTest(unittest.TestCase):
+    def test_data(self):
+        dataset = DatasetPffBlockTypeAutoSpilt("../test_data", cache=False)
+        d11 = dataset[0]
+        d12 = dataset[1]
+        d13 = dataset[2]
+        d14 = dataset[3]
+        d21 = dataset[4]
+        d22 = dataset[5]
+        d23 = dataset[6]
+        d24 = dataset[7]
+        logger.info(f"d11: {d11[0].shape, d11[1].shape}")
+        logger.info(f"d12: {d12[0].shape, d12[1].shape}")
+        logger.info(f"d13: {d13[0].shape, d13[1].shape}")
+        logger.info(f"d14: {d14[0].shape, d14[1].shape}")
+        logger.info(f"d21: {d21[0].shape, d21[1].shape}")
+        logger.info(f"d22: {d22[0].shape, d22[1].shape}")
+        logger.info(f"d23: {d23[0].shape, d23[1].shape}")
+        logger.info(f"d24: {d24[0].shape, d24[1].shape}")
         self.assertEqual(True, True)
 
 

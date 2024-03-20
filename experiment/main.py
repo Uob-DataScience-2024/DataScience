@@ -2,8 +2,8 @@ from loguru import logger
 from rich.logging import RichHandler
 from tqdm.rich import tqdm
 
-from dataset import DatasetPffBlockType
-from model import Seq2Seq
+from dataset import DatasetPffBlockType, DatasetPffBlockTypeAutoSpilt
+from model import *
 import torch
 import torch.utils.data
 import numpy as np
@@ -16,16 +16,16 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 hyperparameters_model = {
     'input_dim': 12,
-    'hidden_dim': 512,
+    'hidden_dim': 256,
     'output_dim': 13,
     'batch_first': True,
-    'num_layers': 1,
+    'num_layers': 2,
     'dropout': 0.2,
 }
 
 hyperparameters_training = {
     'learning_rate': 0.001,
-    'batch_size': 1,
+    'batch_size': 8,
     'num_epochs': 100,
     'split_ratio': 0.8,
 }
@@ -64,14 +64,28 @@ def test(model, criterion, test_loader):
     logger.info(f'Test Accuracy: {np.mean(accuracies) * 100:.2f}%, Test Loss: {np.mean(losses)}')
 
 
+def init_transformers():
+    input_size = 12
+    output_size = 13
+    EMB_SIZE = 512
+    NHEAD = 8
+    FFN_HID_DIM = 512
+    # BATCH_SIZE = 512
+    NUM_ENCODER_LAYERS = 3
+    NUM_DECODER_LAYERS = 3
+
+    transformer = Seq2SeqTransformer(NUM_ENCODER_LAYERS, NUM_DECODER_LAYERS, EMB_SIZE, NHEAD, input_size, output_size, FFN_HID_DIM)
+    return transformer
+
+
 def main():
-    dataset = DatasetPffBlockType('../data', cache=True)
+    dataset = DatasetPffBlockTypeAutoSpilt('../data', cache=True)
     train_set, test_set = torch.utils.data.random_split(dataset,
                                                         [int(len(dataset) * hyperparameters_training['split_ratio']), len(dataset) - int(len(dataset) * hyperparameters_training['split_ratio'])])
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=hyperparameters_training['batch_size'], shuffle=True, collate_fn=collate_fn)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=hyperparameters_training['batch_size'], shuffle=True, collate_fn=collate_fn)
 
-    model = Seq2Seq(**hyperparameters_model)
+    model = Seq2SeqGRU(**hyperparameters_model)
     model.to(device)
 
     criterion = torch.nn.MSELoss()
@@ -101,6 +115,9 @@ def main():
                 losses.pop(0)
                 accuracies.pop(0)
         test(model, criterion, test_loader)
+
+
+
 
 
 if __name__ == '__main__':

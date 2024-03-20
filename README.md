@@ -5,7 +5,7 @@ This project is a part of the coursework for the Applied Data Science module in 
 
 ## Team Members
 - Roy Chen - ky20336@bristol.ac.uk - @Dorrrrrrrr
-- Stephen Chen - uv21031@bristol.ac.uk - @Dusk Xi
+- Stephen Chen [![wakatime](https://wakatime.com/badge/user/23381c4b-372b-46eb-b687-994db38af858/project/018e2ead-93bd-4e6b-a12e-2c3fa87c45a9.svg)](https://wakatime.com/badge/user/23381c4b-372b-46eb-b687-994db38af858/project/018e2ead-93bd-4e6b-a12e-2c3fa87c45a9) - uv21031@bristol.ac.uk - @Dusk Xi
 - Guy Anderson - qh21842@bristol.ac.uk - @GuyAnderson1
 - James Jones - gw21491@bristol.ac.uk - @TheVenomousJam
 - Toby Smith - ja20665@bristol.ac.uk - @toby-smith
