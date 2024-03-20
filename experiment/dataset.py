@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 import pandas as pd
 from torchvision.transforms import transforms
 import torch.nn.functional as F
-from tqdm import tqdm
+from tqdm.rich import tqdm
 
 
 class DatasetPffBlockType(Dataset):
@@ -241,10 +241,10 @@ class DatasetPffBlockTypeAutoSpilt(Dataset):
         csvs = [f for f in os.listdir(os.path.join(self.data_dir, 'cache')) if f.endswith('.csv')]
         if len(csvs) != len(cache_list):
             return False
-        for game in self.final_data.keys():
+        for game in tqdm(self.final_data.keys(), desc='load cache'):
             cache_file = os.path.join(self.data_dir, 'cache', f'{game}.csv')
             if os.path.exists(cache_file) and os.path.isfile(cache_file):
-                self.final_data[game] = pd.read_csv(cache_file)
+                self.final_data[game] = pd.read_csv(cache_file, low_memory=False)
             else:
                 return False
         return True
