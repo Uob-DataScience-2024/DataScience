@@ -3,7 +3,7 @@ import re
 import unittest
 import pandas as pd
 
-from datastructure import PffDataItem, GamePffData
+from pffdata import PffDataItem, GamePffData
 from trackingdata import TrackingDataItem, GameTrackingData
 from tqdm import tqdm
 
