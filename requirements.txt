@@ -1,10 +1,11 @@
 loguru
 numpy
-torch
-torchvision
 tqdm
 rich
 matplotlib
 scipy
 opencv-python
 gradio
+--extra-index-url https://download.pytorch.org/whl/cpu
+torch
+torchvision
