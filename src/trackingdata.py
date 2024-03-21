@@ -38,6 +38,8 @@ class TrackingDataItem:
         self.nfl_id = nfl_id
         self.frame_id = frame_id
         self.time = dt
+        self.number_payload = number_payload
+        self.text_payload = text_payload
         for key, value in number_payload.items():
             setattr(self, key, value)
         for key, value in text_payload.items():

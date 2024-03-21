@@ -3,7 +3,8 @@ import re
 import unittest
 import pandas as pd
 
-from datastructure import PlayDataItem, GamePlayData
+from datastructure import NFLDataItem
+from playdata import PlayDataItem, GamePlayData
 from pffdata import PffDataItem, GamePffData
 from trackingdata import TrackingDataItem, GameTrackingData
 from tqdm import tqdm
@@ -117,6 +118,19 @@ class MainTest(unittest.TestCase):
         loaded = GamePlayData.load(filename)
         data = loaded[list(loaded.keys())[0]]
         item = data[0]
+        self.assertEqual(True, True)
+
+    def test_NFLDataItem(self):
+        weeks = [x for x in os.listdir(data_dir) if x.startswith('week')]
+        if len(weeks) == 0:
+            self.fail("No week file found")
+        test_week_file = weeks[0]
+        test_week_file = os.path.join(data_dir, test_week_file)
+        tracking = list(GameTrackingData.load(test_week_file).values())[0]
+        pff = list(GamePffData.load(os.path.join(data_dir, 'pffScoutingData.csv')).values())[0]
+        play = list(GamePlayData.load(os.path.join(data_dir, 'plays.csv')).values())[0]
+        nfl_item = NFLDataItem.from_object(tracking[0], pff[0], play[0])
+
         self.assertEqual(True, True)
 
 

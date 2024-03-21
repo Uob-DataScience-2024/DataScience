@@ -42,6 +42,9 @@ class PffDataItem:
             setattr(self, key, value)
         for key, value in binary_category_payload.items():
             setattr(self, key, value)
+        self.number_payload = number_payload
+        self.binary_payload = binary_category_payload
+        self.text_payload = text_payload
         for key in self.binary_list:
             if type(getattr(self, key)) == float:
                 if getattr(self, key) == 1.0:
