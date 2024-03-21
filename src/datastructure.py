@@ -3,6 +3,7 @@ from datetime import datetime
 
 import pandas as pd
 
+
 class PffDataItem:
     pff_role: str
     pff_positionLinedUp: str
@@ -29,4 +30,3 @@ class PffDataItem:
             setattr(self, key, value)
         for key, value in binary_category_payload.items():
             setattr(self, key, value)
-
