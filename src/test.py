@@ -3,7 +3,7 @@ import re
 import unittest
 import pandas as pd
 
-from datastructure import PlayDataItem
+from datastructure import PlayDataItem, GamePlayData
 from pffdata import PffDataItem, GamePffData
 from trackingdata import TrackingDataItem, GameTrackingData
 from tqdm import tqdm
@@ -110,6 +110,13 @@ class MainTest(unittest.TestCase):
             items.append(item)
             if i >= max_out:
                 break
+        self.assertEqual(True, True)
+
+    def test_load_GamePlayData(self):
+        filename = os.path.join(data_dir, 'plays.csv')
+        loaded = GamePlayData.load(filename)
+        data = loaded[list(loaded.keys())[0]]
+        item = data[0]
         self.assertEqual(True, True)
 
 
