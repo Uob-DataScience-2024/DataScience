@@ -60,6 +60,8 @@ class MainTest(unittest.TestCase):
         loaded = GameTrackingData.load(test_week_file)
         data = loaded[list(loaded.keys())[0]]
         item = data[0]
+        logger.info(f'GameTrackingData: {data}')
+        logger.info(f'First Item: {item}')
         logger.info('Testing GameTrackingData done')
         self.assertEqual(True, True)
 
@@ -86,6 +88,7 @@ class MainTest(unittest.TestCase):
             items.append(item)
             if i >= max_out:
                 break
+        logger.info(f"Loaded: {items[0]}")
         logger.info('Testing PffDataItem done')
         self.assertEqual(True, True)
 
@@ -95,6 +98,8 @@ class MainTest(unittest.TestCase):
         loaded = GamePffData.load(filename)
         data = loaded[list(loaded.keys())[0]]
         item = data[0]
+        logger.info(f'GamePffData: {data}')
+        logger.info(f'First Item: {item}')
         logger.info('Testing GamePffData done')
         self.assertEqual(True, True)
 
@@ -121,6 +126,7 @@ class MainTest(unittest.TestCase):
             items.append(item)
             if i >= max_out:
                 break
+        logger.info(f"Loaded: {items[0]}")
         logger.info('Testing PlayDataItem done')
         self.assertEqual(True, True)
 
@@ -130,6 +136,8 @@ class MainTest(unittest.TestCase):
         loaded = GamePlayData.load(filename)
         data = loaded[list(loaded.keys())[0]]
         item = data[0]
+        logger.info(f'GamePlayData: {data}')
+        logger.info(f'First Item: {item}')
         logger.info('Testing GamePlayData done')
         self.assertEqual(True, True)
 
