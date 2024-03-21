@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 import pandas as pd
@@ -129,3 +130,91 @@ class NFLDataItem:
         text_payload.update(pff.text_payload)
 
         return NFLDataItem(tracking.week, tracking.game_id, tracking.play_id, tracking.nfl_id, tracking.frame_id, tracking.time, number_payload, binary_payload, text_payload)
+
+
+class GameNFLData:
+    def __init__(self, gameId: int, df_tracking: pd.DataFrame, df_pff: pd.DataFrame, df_play: pd.DataFrame, week: str = ''):
+        self.gameId = gameId
+        self.date_start = df_tracking['time'].min()
+        self.date_end = df_tracking['time'].max()
+        self.tracking = GameTrackingData(gameId, self.date_start, self.date_end, week, df_tracking)
+        self.pff = GamePffData(gameId, df_pff)
+        self.play = GamePlayData(gameId, df_play)
+        self.df = self.merge()
+
+    def merge(self):
+        df_tracking = self.tracking.df.copy()
+        df_pff = self.pff.df.copy()
+        df_play = self.play.df.copy()
+        df_tracking = df_tracking.dropna(subset=['nflId', 'playId'])
+        df_pff = df_pff.dropna(subset=['nflId', 'playId'])
+        df_play = df_play.dropna(subset=['playId'])
+        df_tracking['union_id'] = df_tracking['nflId'].astype(str) + df_tracking['playId'].astype(str)
+        df_pff['union_id'] = df_pff['nflId'].astype(str) + df_pff['playId'].astype(str)
+        df_pff = df_pff.drop(columns=['nflId', 'playId', 'gameId'])
+        df_play = df_play.drop(columns=['gameId'])
+
+        result = pd.merge(df_tracking, df_pff, on='union_id', how='left')
+        result = pd.merge(result, df_play, on='playId', how='left')
+        return result
+
+    @staticmethod
+    def load(filename_tracking, filename_pff, filename_play):
+        week = re.search(r'week(\d+)', filename_tracking).group(1)
+        week = str(int(week))
+        df_tracking = pd.read_csv(filename_tracking)
+        df_tracking['time'] = pd.to_datetime(df_tracking['time'])
+        df_pff = pd.read_csv(filename_pff)
+        df_play = pd.read_csv(filename_play)
+        loaded = {}
+        for gameId in df_tracking['gameId'].unique():
+            sub_df_tracking = df_tracking[df_tracking['gameId'] == gameId]
+            sub_df_pff = df_pff[df_pff['gameId'] == gameId]
+            sub_df_play = df_play[df_play['gameId'] == gameId]
+            loaded[gameId] = GameNFLData(gameId, sub_df_tracking, sub_df_pff, sub_df_play, week)
+        return loaded
+
+    @staticmethod
+    def loads(filename_tracking_list, filename_pff, filename_play):
+        df_pff = pd.read_csv(filename_pff)
+        df_play = pd.read_csv(filename_play)
+        preload = {}
+        for gameId in df_pff['gameId'].unique():
+            sub_df_pff = df_pff[df_pff['gameId'] == gameId]
+            sub_df_play = df_play[df_play['gameId'] == gameId]
+            preload[gameId] = (sub_df_pff, sub_df_play)
+        loaded = {}
+        for filename_tracking in filename_tracking_list:
+            week = re.search(r'week(\d+)', filename_tracking).group(1)
+            week = str(int(week))
+            df_tracking = pd.read_csv(filename_tracking)
+            df_tracking['time'] = pd.to_datetime(df_tracking['time'])
+            for gameId in df_tracking['gameId'].unique():
+                sub_df_tracking = df_tracking[df_tracking['gameId'] == gameId]
+                sub_df_pff, sub_df_play = preload[gameId]
+                loaded[gameId] = GameNFLData(gameId, sub_df_tracking, sub_df_pff, sub_df_play, week)
+        return loaded
+
+    def __len__(self) -> int:
+        return len(self.df)
+
+    def __getitem__(self, idx) -> NFLDataItem:
+        row = self.df.iloc[idx]
+        tracking_row = row[self.tracking.df.columns]
+        pff_row = row[self.pff.df.columns]
+        play_row = row[self.play.df.columns]
+        tracking_args = {arg_name: tracking_row[col_name] for arg_name, col_name in self.tracking.no_payload_columns}
+        tracking_args['number_payload'] = {col_name: tracking_row[col_name] for col_name, dtype in self.tracking.number_list}
+        tracking_args['text_payload'] = {col_name: tracking_row[col_name] for col_name, dtype in self.tracking.text_list}
+
+        pff_args = {arg_name: pff_row[col_name] for arg_name, col_name in self.pff.no_payload_columns}
+        pff_args['number_payload'] = {col_name: pff_row[col_name] for col_name, dtype in self.pff.number_list}
+        pff_args['binary_payload'] = {col_name: pff_row[col_name] for col_name, dtype in self.pff.binary_category_list}
+        pff_args['text_payload'] = {col_name: pff_row[col_name] for col_name, dtype in self.pff.text_list}
+
+        play_args = {arg_name: play_row[col_name] for arg_name, col_name in self.play.no_payload_columns}
+        play_args['number_payload'] = {col_name: play_row[col_name] for col_name, dtype in self.play.number_list}
+        play_args['binary_payload'] = {col_name: play_row[col_name] for col_name, dtype in self.play.binary_category_list}
+        play_args['text_payload'] = {col_name: play_row[col_name] for col_name, dtype in self.play.text_list}
+
+        return NFLDataItem.from_object(TrackingDataItem(self.tracking.week, **tracking_args), PffDataItem(**pff_args), PlayDataItem(**play_args))

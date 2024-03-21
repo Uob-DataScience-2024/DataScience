@@ -32,7 +32,7 @@ class PffDataItem:
         'pff_sackAllowed',
     ]
 
-    def __init__(self, gameId: int, playId: int, nflId: int, number_payload: dict, binary_category_payload, text_payload: dict):
+    def __init__(self, gameId: int, playId: int, nflId: int, number_payload: dict, binary_payload: dict, text_payload: dict):
         self.gameId = gameId
         self.playId = playId
         self.nflId = nflId
@@ -40,10 +40,10 @@ class PffDataItem:
             setattr(self, key, value)
         for key, value in text_payload.items():
             setattr(self, key, value)
-        for key, value in binary_category_payload.items():
+        for key, value in binary_payload.items():
             setattr(self, key, value)
         self.number_payload = number_payload
-        self.binary_payload = binary_category_payload
+        self.binary_payload = binary_payload
         self.text_payload = text_payload
         for key in self.binary_list:
             if type(getattr(self, key)) == float:
@@ -82,6 +82,6 @@ class GamePffData:
         line = self.df.iloc[idx]
         args = {arg_name: line[col_name] for arg_name, col_name in self.no_payload_columns}
         args['number_payload'] = {col_name: line[col_name] for col_name, dtype in self.number_list}
-        args['binary_category_payload'] = {col_name: line[col_name] for col_name, dtype in self.binary_category_list}
+        args['binary_payload'] = {col_name: line[col_name] for col_name, dtype in self.binary_category_list}
         args['text_payload'] = {col_name: line[col_name] for col_name, dtype in self.text_list}
         return PffDataItem(**args)
