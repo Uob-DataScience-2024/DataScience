@@ -52,6 +52,9 @@ class PffDataItem:
                 elif getattr(self, key) == 0.0:
                     setattr(self, key, False)
 
+    def __str__(self):
+        return f'PffDataItem(gameId={self.gameId}, playId={self.playId}, nflId={self.nflId}, pff_role={self.pff_role}, pff_positionLinedUp={self.pff_positionLinedUp}, pff_blockType={self.pff_blockType} | [{self.pff_hit}, {self.pff_hurry}, {self.pff_sack}, {self.pff_beatenByDefender}, {self.pff_hitAllowed}, {self.pff_hurryAllowed}, {self.pff_sackAllowed}, pff_nflIdBlockedPlayer={self.pff_nflIdBlockedPlayer}])'
+
 
 class GamePffData:
     def __init__(self, gameId: int, df: pd.DataFrame):
@@ -74,6 +77,9 @@ class GamePffData:
             sub_df = df[df['gameId'] == gameId]
             loaded[gameId] = GamePffData(gameId, sub_df)
         return loaded
+
+    def __str__(self):
+        return f'GamePffData(gameId={self.gameId}, df=[len:{self.df.shape[0]}, number columns:{len(self.df.columns)}])'
 
     def __len__(self) -> int:
         return len(self.df)

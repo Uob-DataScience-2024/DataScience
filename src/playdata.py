@@ -61,6 +61,8 @@ class PlayDataItem:
                 elif getattr(self, key) == 0.0:
                     setattr(self, key, False)
 
+    def __str__(self):
+        return f'PlayDataItem(gameId={self.gameId}, playId={self.playId}, quarter={self.quarter}, down={self.down}, playDescription={self.playDescription}, possessionTeam={self.possessionTeam}, defensiveTeam={self.defensiveTeam}, yardlineSide={self.yardlineSide})'
 
 class GamePlayData:
     def __init__(self, gameId: int, df: pd.DataFrame):
@@ -83,6 +85,9 @@ class GamePlayData:
             sub_df = df[df['gameId'] == gameId]
             loaded[gameId] = GamePlayData(gameId, sub_df)
         return loaded
+
+    def __str__(self):
+        return f'GamePlayData(gameId={self.gameId}, df=[len:{self.df.shape[0]}, number columns:{len(self.df.columns)}])'
 
     def __len__(self) -> int:
         return len(self.df)

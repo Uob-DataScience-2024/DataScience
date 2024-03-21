@@ -45,6 +45,9 @@ class TrackingDataItem:
         for key, value in text_payload.items():
             setattr(self, key, value)
 
+    def __str__(self) -> str:
+        return f"TrackingDataItem(GameID: {self.game_id}, PlayID: {self.play_id}, FrameID: {self.frame_id}, Time: {self.time}, NFLID: {self.nfl_id}, Event: {self.event}, x: {self.x}, y: {self.y}, s: {self.s}, a: {self.a}, dis: {self.dis}, o: {self.o}, dir: {self.dir})"
+
 
 class GameTrackingData:
     def __init__(self, game_id: int, date_start: datetime, date_end: datetime, week: str, df: pd.DataFrame):
@@ -74,6 +77,9 @@ class GameTrackingData:
             date_end = sub_df['time'].max()
             loaded[game_id] = GameTrackingData(game_id, date_start, date_end, week, sub_df)
         return loaded
+
+    def __str__(self) -> str:
+        return f"GameTrackingData(GameID:{self.game_id}, Week:{self.week}, DTR:[{self.date_start} -> {self.date_end}])[{len(self.df)}]"
 
     def __len__(self) -> int:
         return len(self.df)
