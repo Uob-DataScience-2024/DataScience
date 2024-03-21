@@ -152,6 +152,7 @@ class MainTest(unittest.TestCase):
         pff = list(GamePffData.load(os.path.join(data_dir, 'pffScoutingData.csv')).values())[0]
         play = list(GamePlayData.load(os.path.join(data_dir, 'plays.csv')).values())[0]
         nfl_item = NFLDataItem.from_object(tracking[0], pff[0], play[0])
+        logger.info(f"NFLDataItem: {nfl_item}")
         logger.info('Testing NFLDataItem done')
         self.assertEqual(True, True)
 
@@ -167,6 +168,8 @@ class MainTest(unittest.TestCase):
         gameNFLData = GameNFLData.load(test_week_file, pff_file, play_file)
         data = gameNFLData[list(gameNFLData.keys())[0]]
         item = data[0]
+        logger.info(f'GameNFLData: {data}')
+        logger.info(f'First Item: {item}')
         logger.info('Testing GameNFLData done')
         self.assertEqual(True, True)
 

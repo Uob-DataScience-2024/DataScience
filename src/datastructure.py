@@ -131,6 +131,9 @@ class NFLDataItem:
 
         return NFLDataItem(tracking.week, tracking.game_id, tracking.play_id, tracking.nfl_id, tracking.frame_id, tracking.time, number_payload, binary_payload, text_payload)
 
+    def __str__(self) -> str:
+        return f"NFLDataItem(week={self.week}, gameId={self.gameId}, playId={self.playId}, nflId={self.nflId}, frameId={self.frameId}, time={self.time})"
+
 
 class GameNFLData:
     def __init__(self, gameId: int, df_tracking: pd.DataFrame, df_pff: pd.DataFrame, df_play: pd.DataFrame, week: str = ''):
@@ -194,6 +197,9 @@ class GameNFLData:
                 sub_df_pff, sub_df_play = preload[gameId]
                 loaded[gameId] = GameNFLData(gameId, sub_df_tracking, sub_df_pff, sub_df_play, week)
         return loaded
+
+    def __str__(self) -> str:
+        return f"GameNFLData(gameId={self.gameId}, date_start={self.date_start}, date_end={self.date_end}, tracking={self.tracking}, pff={self.pff}, play={self.play})"
 
     def __len__(self) -> int:
         return len(self.df)
