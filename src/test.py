@@ -2,6 +2,8 @@ import os
 import re
 import unittest
 import pandas as pd
+
+from datastructure import PffDataItem
 from trackingdata import TrackingDataItem, GameTrackingData
 from tqdm import tqdm
 
@@ -41,7 +43,7 @@ class MainTest(unittest.TestCase):
             items.append(item)
             if i >= max_out:
                 break
-        self.assertEqual(True, True)  # add assertion here
+        self.assertEqual(True, True)
 
     def test_load_GameTrackingData(self):
         weeks = [x for x in os.listdir(data_dir) if x.startswith('week')]
@@ -52,6 +54,30 @@ class MainTest(unittest.TestCase):
         loaded = GameTrackingData.load(test_week_file)
         data = loaded[list(loaded.keys())[0]]
         item = data[0]
+        self.assertEqual(True, True)
+
+    def test_PffDataItem(self):
+        filename = os.path.join(data_dir, 'pffScoutingData.csv')
+        df = pd.read_csv(filename)
+        columns = df.columns
+        headers = {}  # save the type of each column
+        for column in columns:
+            headers[column] = df[column].dtype
+        number_list = list(filter((lambda x: pd.api.types.is_numeric_dtype(x[1]) and x[0] not in PffDataItem.no_payload_columns.values()), headers.items()))
+        binary_category_list = list(filter((lambda x: pd.api.types.is_bool_dtype(x[1]) and x[0] not in PffDataItem.no_payload_columns.values()), headers.items()))
+        text_list = list(filter((lambda x: not pd.api.types.is_numeric_dtype(x[1]) and x[0] not in PffDataItem.no_payload_columns.values()), headers.items()))
+        no_payload_columns = list(PffDataItem.no_payload_columns.items())
+        items = []
+        max_out = 10 ** 4
+        for i, line in tqdm(df.iterrows(), total=max_out):
+            args = {arg_name: line[col_name] for arg_name, col_name in no_payload_columns}
+            args['number_payload'] = {col_name: line[col_name] for col_name, dtype in number_list}
+            args['binary_category_payload'] = {col_name: line[col_name] for col_name, dtype in binary_category_list}
+            args['text_payload'] = {col_name: line[col_name] for col_name, dtype in text_list}
+            item = PffDataItem(**args)
+            items.append(item)
+            if i >= max_out:
+                break
         self.assertEqual(True, True)
 
 

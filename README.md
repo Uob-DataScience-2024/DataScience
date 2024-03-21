@@ -1,4 +1,4 @@
-# DataScience [![Python Basic Test CI](https://github.com/Uob-DataScience-2024/DataScience/actions/workflows/auto_test_ci.yml/badge.svg)](https://github.com/Uob-DataScience-2024/DataScience/actions/workflows/auto_test_ci.yml) [![Python Experiment Test CI](https://github.com/Uob-DataScience-2024/DataScience/actions/workflows/auto_test_ci_experiment.yml/badge.svg)](https://github.com/Uob-DataScience-2024/DataScience/actions/workflows/auto_test_ci_experiment.yml)
+# DataScience [![Python Basic Test CI](https://github.com/Uob-DataScience-2024/DataScience/actions/workflows/auto_test_ci.yml/badge.svg)](https://github.com/Uob-DataScience-2024/DataScience/actions/workflows/auto_test_ci.yml) [![Python Experiment Test CI](https://github.com/Uob-DataScience-2024/DataScience/actions/workflows/auto_test_ci_experiment.yml/badge.svg)](https://github.com/Uob-DataScience-2024/DataScience/actions/workflows/auto_test_ci_experiment.yml) [![Python Test CI Main](https://github.com/Uob-DataScience-2024/DataScience/actions/workflows/auto_test_ci_main.yml/badge.svg)](https://github.com/Uob-DataScience-2024/DataScience/actions/workflows/auto_test_ci_main.yml)
 
 
 ## Project Overview
