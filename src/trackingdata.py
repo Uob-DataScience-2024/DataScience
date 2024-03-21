@@ -73,10 +73,10 @@ class GameTrackingData:
             loaded[game_id] = GameTrackingData(game_id, date_start, date_end, week, sub_df)
         return loaded
 
-    def __len__(self):
+    def __len__(self) -> int:
         return len(self.df)
 
-    def __getitem__(self, idx):
+    def __getitem__(self, idx) -> TrackingDataItem:
         line = self.df.iloc[idx]
         args = {arg_name: line[col_name] for arg_name, col_name in self.no_payload_columns}
         args['number_payload'] = {col_name: line[col_name] for col_name, dtype in self.number_list}
