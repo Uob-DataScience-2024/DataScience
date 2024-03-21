@@ -173,6 +173,22 @@ class MainTest(unittest.TestCase):
         logger.info('Testing GameNFLData done')
         self.assertEqual(True, True)
 
+    def test_load_all(self):
+        logger.info('Testing load all')
+        weeks = [x for x in os.listdir(data_dir) if x.startswith('week')]
+        if len(weeks) == 0:
+            self.fail("No week file found")
+        weeks = [os.path.join(data_dir, x) for x in weeks]
+        pff_file = os.path.join(data_dir, 'pffScoutingData.csv')
+        play_file = os.path.join(data_dir, 'plays.csv')
+        gameNFLData = GameNFLData.loads(weeks, pff_file, play_file)
+        data = gameNFLData[list(gameNFLData.keys())[0]]
+        item = data[0]
+        logger.info(f'GameNFLData: {data}')
+        logger.info(f'First Item: {item}')
+        logger.info('Testing load all done')
+        self.assertEqual(True, True)
+
 
 if __name__ == '__main__':
     unittest.main()

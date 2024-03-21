@@ -145,7 +145,7 @@ class GameNFLData:
         self.play = GamePlayData(gameId, df_play)
         self.df = self.merge()
 
-    def merge(self):
+    def merge(self) -> pd.DataFrame:
         df_tracking = self.tracking.df.copy()
         df_pff = self.pff.df.copy()
         df_play = self.play.df.copy()
@@ -162,7 +162,7 @@ class GameNFLData:
         return result
 
     @staticmethod
-    def load(filename_tracking, filename_pff, filename_play):
+    def load(filename_tracking, filename_pff, filename_play) -> dict:
         week = re.search(r'week(\d+)', filename_tracking).group(1)
         week = str(int(week))
         df_tracking = pd.read_csv(filename_tracking)
@@ -178,7 +178,7 @@ class GameNFLData:
         return loaded
 
     @staticmethod
-    def loads(filename_tracking_list, filename_pff, filename_play):
+    def loads(filename_tracking_list, filename_pff, filename_play) -> dict:
         df_pff = pd.read_csv(filename_pff)
         df_play = pd.read_csv(filename_play)
         preload = {}
