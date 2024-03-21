@@ -1,7 +1,7 @@
 loguru==0.7.2
 numpy==1.26.3
-torch
-torchvision
+-i https://download.pytorch.org/whl/cpu torch
+-i https://download.pytorch.org/whl/cpu torchvision
 tqdm==4.66.2
 rich==13.7.1
 matplotlib==3.8.3
