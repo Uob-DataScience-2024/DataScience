@@ -1,4 +1,4 @@
-name: Python Experiment Test CI
+name: Python Test CI Main
 
 on: [push, pull_request]
 
@@ -18,11 +18,11 @@ jobs:
           cache-dependency-path: 'requirements_ci.txt'
 
       - name: Install dependencies
-        run: | 
-          pip install -r requirements_ci.txt
+        run: |
+          pip install -r requirements.txt
           pip install pytest
 
       - name: Run tests
         run: |
-          cd experiment
+          cd src
           python -m unittest
