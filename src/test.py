@@ -17,7 +17,7 @@ if len(list(filter(lambda x: x.endswith('.csv'), os.listdir(data_dir)))) == 0:
     data_dir = '../test_data'
 
 
-class MainTest(unittest.TestCase):
+class DataClassInitTest(unittest.TestCase):
     def test_TrackingDataItem(self):
         logger.info('Testing TrackingDataItem')
         weeks = [x for x in os.listdir(data_dir) if x.startswith('week')]
@@ -187,6 +187,32 @@ class MainTest(unittest.TestCase):
         logger.info(f'GameNFLData: {data}')
         logger.info(f'First Item: {item}')
         logger.info('Testing load all done')
+        self.assertEqual(True, True)
+
+
+def load_demo_data_tracking_data() -> dict[int, GameTrackingData]:
+    weeks = [x for x in os.listdir(data_dir) if x.startswith('week')]
+    if len(weeks) == 0:
+        raise ValueError("No week file found")
+    test_week_file = weeks[0]
+    test_week_file = os.path.join(data_dir, test_week_file)
+    loaded = GameTrackingData.load(test_week_file)
+    return loaded
+
+
+class DataClassMethodTest(unittest.TestCase):
+    def test_statistics(self):
+        data = load_demo_data_tracking_data()
+        demo: GameTrackingData = data[list(data.keys())[0]]
+        statistics = demo.statistics()
+        logger.info(f"Statistics: {statistics}")
+        self.assertEqual(True, True)
+
+    def test_tensor(self):
+        data = load_demo_data_tracking_data()
+        demo: GameTrackingData = data[list(data.keys())[0]]
+        tensor = demo.tensor({}, {})
+        logger.info(f"Tensor: {tensor.shape}")
         self.assertEqual(True, True)
 
 

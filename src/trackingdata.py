@@ -1,7 +1,10 @@
 import re
 from datetime import datetime
+from typing import Optional
 
+import numpy as np
 import pandas as pd
+import torch
 
 
 class TrackingDataItem:
@@ -29,6 +32,20 @@ class TrackingDataItem:
         'nfl_id': 'nflId',
         'frame_id': 'frameId',
         'dt': 'time',
+    }
+
+    resize_range = {
+        'x': (0, 120),
+        'y': (0, 53.3),
+        's': None,
+        'a': None,
+        'dis': None,
+        'o': (0, 360),
+        'dir': (0, 360),
+    }
+
+    category_labels = {
+        'event': None,
     }
 
     def __init__(self, week: str, game_id: int, play_id: int, nfl_id: int, frame_id: int, dt: datetime, number_payload: dict, text_payload: dict):
@@ -90,3 +107,48 @@ class GameTrackingData:
         args['number_payload'] = {col_name: line[col_name] for col_name, dtype in self.number_list}
         args['text_payload'] = {col_name: line[col_name] for col_name, dtype in self.text_list}
         return TrackingDataItem(self.week, **args)
+
+    def statistics(self):
+        return self.df.describe()
+
+    def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, dtype=torch.float32) -> torch.Tensor:
+        df = self.df.copy()
+        columns = df.columns
+        types = {column: df[column].dtype for column in columns}
+        statistics = self.statistics()
+        resize_range = TrackingDataItem.resize_range.copy()
+        resize_range.update(resize_range_overwrite)
+        category_labels: dict[str, None | list] = TrackingDataItem.category_labels.copy()
+        category_labels.update(category_labels_overwrite)
+        for i, column in enumerate(columns):
+            if pd.api.types.is_numeric_dtype(types[column]):
+                if column in resize_range.keys() and resize_range[column] is not None:
+                    vMin, vMax = resize_range[column]
+                    df[column] = (df[column] - vMin) / (vMax - vMin)
+                else:
+                    vMin, vMax = statistics[column]['min'], statistics[column]['max']
+                    df[column] = (df[column] - vMin) / (vMax - vMin)
+            elif pd.api.types.is_string_dtype(types[column]):
+                if column in category_labels.keys() and category_labels[column] is not None:
+                    label_mapping = {k: v for v, k in enumerate(category_labels[column])}
+                    df[column] = df[column].map(label_mapping)
+                else:
+                    labels = df[column].unique()
+                    # move nan to first
+                    if pd.isna(labels).any():
+                        labels = labels[1:].tolist()
+                        # labels = [np.nan] + labels
+                    category = pd.Categorical(df[column], categories=labels)
+                    df[column] = category.codes
+            elif pd.api.types.is_datetime64_any_dtype(types[column]):
+                # to timestamp
+                df[column] = df[column].astype(np.int64) // 10 ** 9
+                start = df[column].min()
+                end = df[column].max()
+                df[column] = (df[column] - start) / (end - start)
+            else:
+                pass
+            if not pd.api.types.is_numeric_dtype(df[column].dtype):
+                pass
+        tensor = torch.tensor(df.values, dtype=dtype)
+        return tensor
