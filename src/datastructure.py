@@ -110,7 +110,7 @@ class NFLDataItem:
 
     }
 
-    block_columns = ['gameId', 'playDescription', 'union_id']
+    block_columns = ['gameId', 'playDescription', 'union_id', 'preSnapHomeScore', 'preSnapVisitorScore']
 
     def __init__(self, week: str, gameId: int, playId: int, nflId: int, frameId: int, dt: datetime, number_payload: dict, binary_payload: dict, text_payload: dict):
         self.week = week
@@ -157,6 +157,7 @@ class NFLDataItem:
 
 class GameNFLData:
     def __init__(self, gameId: int, df_tracking: pd.DataFrame, df_pff: pd.DataFrame, df_play: pd.DataFrame, week: str = ''):
+        self.home_visitor = None
         self.gameId = gameId
         self.date_start = df_tracking['time'].min()
         self.date_end = df_tracking['time'].max()
@@ -245,11 +246,16 @@ class GameNFLData:
 
         return NFLDataItem.from_object(TrackingDataItem(self.tracking.week, **tracking_args), PffDataItem(**pff_args), PlayDataItem(**play_args))
 
+    def set_home_visitor(self, home, visitor):
+        self.home_visitor = [home, visitor]
+
     def statistics(self):
         return self.df.describe()
 
     def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32) -> [torch.Tensor, dict[str, dict]]:
         df = self.df.copy()
+        if self.home_visitor is not None:
+            category_labels_overwrite['team'] = self.home_visitor
         if columns is None:
             columns = df.columns
         elif len(list(filter(lambda x: x not in df.columns, columns))):
