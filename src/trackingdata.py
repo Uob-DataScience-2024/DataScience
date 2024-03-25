@@ -71,6 +71,7 @@ class TrackingDataItem:
 
 class GameTrackingData:
     def __init__(self, game_id: int, date_start: datetime, date_end: datetime, week: str, df: pd.DataFrame):
+        self.home_visitor = None
         self.game_id = game_id
         self.date_start = date_start
         self.date_end = date_end
@@ -118,6 +119,9 @@ class GameTrackingData:
         args['text_payload'] = {col_name: line[col_name] for col_name, dtype in self.text_list}
         return TrackingDataItem(self.week, **args)
 
+    def set_home_visitor(self, home, visitor):
+        self.home_visitor = [home, visitor]
+
     def statistics(self):
         return self.df.describe()
 
@@ -125,6 +129,8 @@ class GameTrackingData:
         df = self.df.copy()
         if play_id_filter is not None:
             df = df[df['playId'].isin(play_id_filter)]
+        if self.home_visitor is not None:
+            category_labels_overwrite['team'] = self.home_visitor
         if columns is None:
             columns = df.columns
         elif len(list(filter(lambda x: x not in df.columns, columns))):
