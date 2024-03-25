@@ -119,6 +119,13 @@ class GamePlayData:
     def statistics(self):
         return self.df.describe()
 
+    def get_quarter_partition(self):
+        df = self.df[['quarter', 'playId']]
+        result = []
+        for quarter in df['quarter'].unique():
+            result.append(df[df['quarter'] == quarter]['playId'].values)
+        return result
+
     def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32) -> [torch.Tensor, dict[str, dict]]:
         df = self.df.copy()
         if columns is None:

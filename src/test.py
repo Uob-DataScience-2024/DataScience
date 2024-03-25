@@ -263,6 +263,13 @@ class DataClassMethodTest(unittest.TestCase):
         logger.info(f"Data Map: {data_map}")
         self.assertEqual(True, True)
 
+    def test_get_quarter_partition(self):
+        data = load_demo_data_play_data()
+        demo: GamePlayData = data[list(data.keys())[0]]
+        partition = demo.get_quarter_partition()
+        logger.info(f"Quarter Partition: {partition}")
+        self.assertEqual(True, True)
+
 
 if __name__ == '__main__':
     unittest.main()
