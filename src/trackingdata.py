@@ -114,8 +114,10 @@ class GameTrackingData:
     def statistics(self):
         return self.df.describe()
 
-    def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32) -> [torch.Tensor, dict[str, dict]]:
+    def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32, play_id_filter=None) -> [torch.Tensor, dict[str, dict]]:
         df = self.df.copy()
+        if play_id_filter is not None:
+            df = df[df['playId'].isin(play_id_filter)]
         if columns is None:
             columns = df.columns
         elif len(list(filter(lambda x: x not in df.columns, columns))):
@@ -167,7 +169,7 @@ class GameTrackingData:
                 df[column] = df[column].astype(np.int64) // 10 ** 6
                 start = df[column].min()
                 end = df[column].max()
-                df[column] = ((df[column] - start) / (end - start) ) * 10
+                df[column] = ((df[column] - start) / (end - start)) * 10
                 data_map[column] = {
                     "type": "datetime",
                     "mode": "timestamp",

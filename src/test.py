@@ -270,6 +270,17 @@ class DataClassMethodTest(unittest.TestCase):
         logger.info(f"Quarter Partition: {partition}")
         self.assertEqual(True, True)
 
+    def test_tracking_filter(self):
+        tracking_data = load_demo_data_tracking_data()
+        playdata = load_demo_data_play_data()
+        game_id = list(tracking_data.keys())[0]
+        partition = playdata[game_id].get_quarter_partition()
+        tensor = tracking_data[game_id].tensor({}, {})
+        tensor_filtered = tracking_data[game_id].tensor({}, {}, play_id_filter=partition[0])
+        logger.info(f"partition range: {[x.shape for x in partition]}")
+        logger.info(f"Tensors: {tensor[0].shape} -> {tensor_filtered[0].shape}")
+        self.assertEqual(True, True)
+
 
 if __name__ == '__main__':
     unittest.main()
