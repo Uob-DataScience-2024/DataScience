@@ -254,12 +254,12 @@ class GameNFLData:
             columns = df.columns
         elif len(list(filter(lambda x: x not in df.columns, columns))):
             raise ValueError(f"Columns not found in dataframe: {list(filter(lambda x: x not in df.columns, columns))}")
-        columns = list(filter(lambda x: x not in PlayDataItem.block_columns, columns))
+        columns = list(filter(lambda x: x not in NFLDataItem.block_columns, columns))
         types = {column: df[column].dtype for column in columns}
         statistics = self.statistics()
-        resize_range = PlayDataItem.resize_range.copy()
+        resize_range = NFLDataItem.resize_range.copy()
         resize_range.update(resize_range_overwrite)
-        category_labels: dict[str, None | list] = PlayDataItem.category_labels.copy()
+        category_labels: dict[str, None | list] = NFLDataItem.category_labels.copy()
         category_labels.update(category_labels_overwrite)
         data_map = {}
         for i, column in enumerate(columns):

@@ -81,8 +81,9 @@ class PlayDataItem:
 class GamePlayData:
     def __init__(self, gameId: int, df: pd.DataFrame):
         self.gameId = gameId
-        self.df = df
-        df.loc[df.index, 'gameClock'] = pd.to_datetime(df['gameClock'], format='%M:%S')
+        cp = df.copy()
+        cp['gameClock'] = pd.to_datetime(df['gameClock'], format='%M:%S')
+        self.df = cp
         columns = df.columns
         headers = {}
         for column in columns:
