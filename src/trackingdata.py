@@ -5,6 +5,7 @@ from typing import Optional
 import numpy as np
 import pandas as pd
 import torch
+from loguru import logger
 
 
 class TrackingDataItem:
@@ -47,6 +48,8 @@ class TrackingDataItem:
     category_labels = {
         'event': None,
     }
+
+    block_columns = ['gameId']
 
     def __init__(self, week: str, game_id: int, play_id: int, nfl_id: int, frame_id: int, dt: datetime, number_payload: dict, text_payload: dict):
         self.week = week
@@ -111,15 +114,20 @@ class GameTrackingData:
     def statistics(self):
         return self.df.describe()
 
-    def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, dtype=torch.float32) -> torch.Tensor:
+    def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32) -> [torch.Tensor, dict[str, dict]]:
         df = self.df.copy()
-        columns = df.columns
+        if columns is None:
+            columns = df.columns
+        elif len(list(filter(lambda x: x not in df.columns, columns))):
+            raise ValueError(f"Columns not found in dataframe: {list(filter(lambda x: x not in df.columns, columns))}")
+        columns = list(filter(lambda x: x not in TrackingDataItem.block_columns, columns))
         types = {column: df[column].dtype for column in columns}
         statistics = self.statistics()
         resize_range = TrackingDataItem.resize_range.copy()
         resize_range.update(resize_range_overwrite)
         category_labels: dict[str, None | list] = TrackingDataItem.category_labels.copy()
         category_labels.update(category_labels_overwrite)
+        data_map = {}
         for i, column in enumerate(columns):
             if pd.api.types.is_numeric_dtype(types[column]):
                 if column in resize_range.keys() and resize_range[column] is not None:
@@ -128,27 +136,48 @@ class GameTrackingData:
                 else:
                     vMin, vMax = statistics[column]['min'], statistics[column]['max']
                     df[column] = (df[column] - vMin) / (vMax - vMin)
+                data_map[column] = {
+                    "type": "number",
+                    "min": vMin,
+                    "max": vMax,
+                    "index": i,
+                }
             elif pd.api.types.is_string_dtype(types[column]):
                 if column in category_labels.keys() and category_labels[column] is not None:
                     label_mapping = {k: v for v, k in enumerate(category_labels[column])}
                     df[column] = df[column].map(label_mapping)
+                    data_map[column] = {
+                        "type": "category",
+                        "labels": category_labels[column],
+                        "index": i,
+                    }
                 else:
                     labels = df[column].unique()
-                    # move nan to first
                     if pd.isna(labels).any():
                         labels = labels[1:].tolist()
-                        # labels = [np.nan] + labels
                     category = pd.Categorical(df[column], categories=labels)
                     df[column] = category.codes
+                    data_map[column] = {
+                        "type": "category",
+                        "labels": labels,
+                        "index": i,
+                    }
             elif pd.api.types.is_datetime64_any_dtype(types[column]):
-                # to timestamp
-                df[column] = df[column].astype(np.int64) // 10 ** 9
+                # to timestamp ms
+                df[column] = df[column].astype(np.int64) // 10 ** 6
                 start = df[column].min()
                 end = df[column].max()
-                df[column] = (df[column] - start) / (end - start)
+                df[column] = ((df[column] - start) / (end - start) ) * 10
+                data_map[column] = {
+                    "type": "datetime",
+                    "mode": "timestamp",
+                    "index": i,
+                }
             else:
-                pass
+                logger.warning(f"Column {column} is not a valid type")
             if not pd.api.types.is_numeric_dtype(df[column].dtype):
                 pass
+        df = df.fillna(-1)
+        df = df[columns]
         tensor = torch.tensor(df.values, dtype=dtype)
-        return tensor
+        return tensor, data_map

@@ -200,6 +200,29 @@ def load_demo_data_tracking_data() -> dict[int, GameTrackingData]:
     return loaded
 
 
+def load_demo_data_pff_data() -> dict[int, GamePffData]:
+    filename = os.path.join(data_dir, 'pffScoutingData.csv')
+    loaded = GamePffData.load(filename)
+    return loaded
+
+
+def load_demo_data_play_data() -> dict[int, GamePlayData]:
+    filename = os.path.join(data_dir, 'plays.csv')
+    loaded = GamePlayData.load(filename)
+    return loaded
+
+
+def load_demo_data_nfl_data() -> dict[int, GameNFLData]:
+    weeks = [x for x in os.listdir(data_dir) if x.startswith('week')]
+    if len(weeks) == 0:
+        raise ValueError("No week file found")
+    weeks = [os.path.join(data_dir, x) for x in weeks]
+    pff_file = os.path.join(data_dir, 'pffScoutingData.csv')
+    play_file = os.path.join(data_dir, 'plays.csv')
+    gameNFLData = GameNFLData.loads(weeks, pff_file, play_file)
+    return gameNFLData
+
+
 class DataClassMethodTest(unittest.TestCase):
     def test_statistics(self):
         data = load_demo_data_tracking_data()
@@ -208,11 +231,36 @@ class DataClassMethodTest(unittest.TestCase):
         logger.info(f"Statistics: {statistics}")
         self.assertEqual(True, True)
 
-    def test_tensor(self):
+    def test_tensor_tracking_data(self):
         data = load_demo_data_tracking_data()
         demo: GameTrackingData = data[list(data.keys())[0]]
-        tensor = demo.tensor({}, {})
+        tensor, data_map = demo.tensor({}, {})
         logger.info(f"Tensor: {tensor.shape}")
+        logger.info(f"Data Map: {data_map}")
+        self.assertEqual(True, True)
+
+    def test_tensor_pff_data(self):
+        data = load_demo_data_pff_data()
+        demo: GamePffData = data[list(data.keys())[0]]
+        tensor, data_map = demo.tensor({}, {})
+        logger.info(f"Tensor: {tensor.shape}")
+        logger.info(f"Data Map: {data_map}")
+        self.assertEqual(True, True)
+
+    def test_tensor_play_data(self):
+        data = load_demo_data_play_data()
+        demo: GamePlayData = data[list(data.keys())[0]]
+        tensor, data_map = demo.tensor({}, {})
+        logger.info(f"Tensor: {tensor.shape}")
+        logger.info(f"Data Map: {data_map}")
+        self.assertEqual(True, True)
+
+    def test_tensor_nfl_data(self):
+        data = load_demo_data_nfl_data()
+        demo: GameNFLData = data[list(data.keys())[0]]
+        tensor, data_map = demo.tensor({}, {})
+        logger.info(f"Tensor: {tensor.shape}")
+        logger.info(f"Data Map: {data_map}")
         self.assertEqual(True, True)
 
 
