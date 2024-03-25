@@ -282,5 +282,14 @@ class DataClassMethodTest(unittest.TestCase):
         self.assertEqual(True, True)
 
 
+class TestDataset(unittest.TestCase):
+    def test_TrackingDataset(self):
+        from dataset import TrackingDataset
+        dataset = TrackingDataset(data_dir)
+        x, y = dataset[0]
+        logger.info(f"X: {x.shape}, Y: {y.shape}")
+        self.assertEqual(True, True)
+
+
 if __name__ == '__main__':
     unittest.main()

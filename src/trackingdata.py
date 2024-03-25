@@ -98,6 +98,13 @@ class GameTrackingData:
             loaded[game_id] = GameTrackingData(game_id, date_start, date_end, week, sub_df)
         return loaded
 
+    @staticmethod
+    def load_all(filenames):
+        loaded = {}
+        for filename in filenames:
+            loaded.update(GameTrackingData.load(filename))
+        return loaded
+
     def __str__(self) -> str:
         return f"GameTrackingData(GameID:{self.game_id}, Week:{self.week}, DTR:[{self.date_start} -> {self.date_end}])[{len(self.df)}]"
 

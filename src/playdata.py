@@ -126,6 +126,14 @@ class GamePlayData:
             result.append(df[df['quarter'] == quarter]['playId'].values)
         return result
 
+    def win_home(self):
+        df = self.df.copy()
+        # sort by playId
+        df = df.sort_values(by='playId')
+        # get last row
+        last_row = df.iloc[-1]
+        return last_row['preSnapHomeScore'] > last_row['preSnapVisitorScore']
+
     def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32) -> [torch.Tensor, dict[str, dict]]:
         df = self.df.copy()
         if columns is None:
