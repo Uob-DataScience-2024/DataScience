@@ -194,3 +194,9 @@ class TrainingConfigure(dict):
 
     def to_json(self):
         return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
+
+    @staticmethod
+    def from_file(path):
+        with open(path, 'r') as f:
+            return TrainingConfigure(**json.load(f))
+
