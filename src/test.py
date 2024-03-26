@@ -4,10 +4,10 @@ import unittest
 import pandas as pd
 import torch
 
-from datastructure import NFLDataItem, GameNFLData
-from playdata import PlayDataItem, GamePlayData
-from pffdata import PffDataItem, GamePffData
-from trackingdata import TrackingDataItem, GameTrackingData
+from data import NFLDataItem, GameNFLData
+from data import PlayDataItem, GamePlayData
+from data import PffDataItem, GamePffData
+from data import TrackingDataItem, GameTrackingData
 from tqdm import tqdm
 from training_config import TrainingConfigure
 
