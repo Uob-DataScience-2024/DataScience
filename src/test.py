@@ -2,6 +2,7 @@ import os
 import re
 import unittest
 import pandas as pd
+import torch
 
 from datastructure import NFLDataItem, GameNFLData
 from playdata import PlayDataItem, GamePlayData
@@ -337,6 +338,16 @@ class TestDataset(unittest.TestCase):
         dataset = SegmentDataset(data_dir, input_features=input_features, target_feature='pff_blockType')
         x, y = dataset[832]
         logger.info(f"X: {x.shape}, Y: {y.shape}, Item max length: {dataset.item_max_len}")
+        self.assertEqual(True, True)
+
+
+class TestNetwork(unittest.TestCase):
+    def test_same_size_cnn(self):
+        from model import SameSizeCNN
+        model = SameSizeCNN(1, 32, 12)
+        data = torch.randn(1, 1, 203, 14)
+        out = model(data)
+        logger.info(f"Out: {out.shape}")
         self.assertEqual(True, True)
 
 
