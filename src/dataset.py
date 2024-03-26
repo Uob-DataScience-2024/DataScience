@@ -7,10 +7,7 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 import torch.utils
 
-from game_data import GameData
-from playdata import GamePlayData
-from trackingdata import GameTrackingData
-from datastructure import GameNFLData
+from data import GameData, GamePlayData, GameNFLData, GameTrackingData
 
 
 class TrackingDataset(Dataset):
