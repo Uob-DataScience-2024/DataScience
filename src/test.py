@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from loguru import logger
 
-data_dir = '../data'
+data_dir = '../test_data'
 if len(list(filter(lambda x: x.endswith('.csv'), os.listdir(data_dir)))) == 0:
     logger.warning('No csv file found in data directory, now run test data')
     data_dir = '../test_data'
@@ -286,6 +286,40 @@ class TestDataset(unittest.TestCase):
     def test_TrackingDataset(self):
         from dataset import TrackingDataset
         dataset = TrackingDataset(data_dir)
+        x, y = dataset[0]
+        logger.info(f"X: {x.shape}, Y: {y.shape}")
+        self.assertEqual(True, True)
+
+    def test_sequence_dataset(self):
+        from dataset import SequenceDataset
+        dataset = SequenceDataset(data_dir)
+        x, y = dataset[0]
+        logger.info(f"X: {x.shape}, Y: {y.shape}")
+        self.assertEqual(True, True)
+
+    def test_sequence_dataset_split(self):
+        from dataset import SequenceDataset
+        dataset_split = SequenceDataset(data_dir, split=True)
+        dataset_no_split = SequenceDataset(data_dir, split=False)
+        logger.info(f"Split Dataset: {len(dataset_split)}, No Split Dataset: {len(dataset_no_split)}")
+        x, y = dataset_no_split[0]
+        logger.info(f"X: {x.shape}, Y: {y.shape}")
+        X1, Y1 = dataset_split[0]
+        X2, Y2 = dataset_split[1]
+        X3, Y3 = dataset_split[2]
+        X4, Y4 = dataset_split[3]
+        logger.info(f"X1: {X1.shape}, Y1: {Y1.shape}")
+        logger.info(f"X2: {X2.shape}, Y2: {Y2.shape}")
+        logger.info(f"X3: {X3.shape}, Y3: {Y3.shape}")
+        logger.info(f"X4: {X4.shape}, Y4: {Y4.shape}")
+        logger.info(f"Sum: {X1.shape[0] + X2.shape[0] + X3.shape[0] + X4.shape[0]}, No Split: {x.shape[0]}")
+        self.assertEqual(X1.shape[0] + X2.shape[0] + X3.shape[0] + X4.shape[0], x.shape[0])
+
+    def test_sequence_dataset_custom_col(self):
+        from dataset import SequenceDataset
+        input_features = ['playId', 'nflId', 'frameId', 'time', 'jerseyNumber', 'team', 'playDirection', 'x', 'y', 's', 'a', 'dis', 'o', 'dir']
+        logger.info(f"Input Features({len(input_features)}): {input_features}")
+        dataset = SequenceDataset(data_dir, input_features=input_features, target_feature='pff_blockType')
         x, y = dataset[0]
         logger.info(f"X: {x.shape}, Y: {y.shape}")
         self.assertEqual(True, True)

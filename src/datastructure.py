@@ -173,8 +173,8 @@ class GameNFLData:
         df_tracking = df_tracking.dropna(subset=['nflId', 'playId'])
         df_pff = df_pff.dropna(subset=['nflId', 'playId'])
         df_play = df_play.dropna(subset=['playId'])
-        df_tracking['union_id'] = df_tracking['nflId'].astype(str) + df_tracking['playId'].astype(str)
-        df_pff['union_id'] = df_pff['nflId'].astype(str) + df_pff['playId'].astype(str)
+        df_tracking['union_id'] = df_tracking['nflId'].astype(int).astype(str) + df_tracking['playId'].astype(int).astype(str)
+        df_pff['union_id'] = df_pff['nflId'].astype(int).astype(str) + df_pff['playId'].astype(int).astype(str)
         df_pff = df_pff.drop(columns=['nflId', 'playId', 'gameId'])
         df_play = df_play.drop(columns=['gameId'])
 
@@ -183,7 +183,7 @@ class GameNFLData:
         return result
 
     @staticmethod
-    def load(filename_tracking, filename_pff, filename_play) -> dict:
+    def load(filename_tracking, filename_pff, filename_play):
         week = re.search(r'week(\d+)', filename_tracking).group(1)
         week = str(int(week))
         df_tracking = pd.read_csv(filename_tracking)
@@ -199,7 +199,7 @@ class GameNFLData:
         return loaded
 
     @staticmethod
-    def loads(filename_tracking_list, filename_pff, filename_play) -> dict:
+    def loads(filename_tracking_list, filename_pff, filename_play) :
         df_pff = pd.read_csv(filename_pff)
         df_play = pd.read_csv(filename_play)
         preload = {}
@@ -246,14 +246,19 @@ class GameNFLData:
 
         return NFLDataItem.from_object(TrackingDataItem(self.tracking.week, **tracking_args), PffDataItem(**pff_args), PlayDataItem(**play_args))
 
+    def get_quarter_partition(self):
+        return self.play.get_quarter_partition()
+
     def set_home_visitor(self, home, visitor):
         self.home_visitor = [home, visitor]
 
     def statistics(self):
         return self.df.describe()
 
-    def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32) -> [torch.Tensor, dict[str, dict]]:
+    def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32, play_id_filter=None):
         df = self.df.copy()
+        if play_id_filter is not None:
+            df = df[df['playId'].isin(play_id_filter)]
         if self.home_visitor is not None:
             category_labels_overwrite['team'] = self.home_visitor
         if columns is None:
@@ -325,7 +330,7 @@ class GameNFLData:
             if not pd.api.types.is_numeric_dtype(df[column].dtype):
                 pass
         # all nan to -1
-        df = df.fillna(-1)
         df = df[columns]
+        df = df.fillna(-1)
         tensor = torch.tensor(df.values, dtype=dtype)
         return tensor, data_map
