@@ -199,7 +199,7 @@ class GameNFLData:
         return loaded
 
     @staticmethod
-    def loads(filename_tracking_list, filename_pff, filename_play) :
+    def loads(filename_tracking_list, filename_pff, filename_play):
         df_pff = pd.read_csv(filename_pff)
         df_play = pd.read_csv(filename_play)
         preload = {}
@@ -255,8 +255,17 @@ class GameNFLData:
     def statistics(self):
         return self.df.describe()
 
-    def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32, play_id_filter=None):
+    def union_id_mask(self):
+        """Return a index mask for each union_id"""
+        group = self.df.groupby('union_id')
+        # union_id_mask = group.apply(lambda x: x.index)
+        mask = {key: group.index for key, group in group}
+        return mask
+
+    def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32, play_id_filter=None, mask=None):
         df = self.df.copy()
+        if mask is not None:
+            df = df[df.index.isin(mask)]
         if play_id_filter is not None:
             df = df[df['playId'].isin(play_id_filter)]
         if self.home_visitor is not None:

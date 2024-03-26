@@ -281,6 +281,13 @@ class DataClassMethodTest(unittest.TestCase):
         logger.info(f"Tensors: {tensor[0].shape} -> {tensor_filtered[0].shape}")
         self.assertEqual(True, True)
 
+    def test_mask(self):
+        nfl_data = load_demo_data_nfl_data()
+        game_id = list(nfl_data.keys())[0]
+        mask = nfl_data[game_id].union_id_mask()
+        logger.info(f"Mask: {len(mask)}")
+        self.assertEqual(True, True)
+
 
 class TestDataset(unittest.TestCase):
     def test_TrackingDataset(self):
@@ -322,6 +329,14 @@ class TestDataset(unittest.TestCase):
         dataset = SequenceDataset(data_dir, input_features=input_features, target_feature='pff_blockType')
         x, y = dataset[0]
         logger.info(f"X: {x.shape}, Y: {y.shape}")
+        self.assertEqual(True, True)
+
+    def test_segment_dataset(self):
+        from dataset import SegmentDataset
+        input_features = ['playId', 'nflId', 'frameId', 'time', 'jerseyNumber', 'team', 'playDirection', 'x', 'y', 's', 'a', 'dis', 'o', 'dir']
+        dataset = SegmentDataset(data_dir, input_features=input_features, target_feature='pff_blockType')
+        x, y = dataset[832]
+        logger.info(f"X: {x.shape}, Y: {y.shape}, Item max length: {dataset.item_max_len}")
         self.assertEqual(True, True)
 
 
