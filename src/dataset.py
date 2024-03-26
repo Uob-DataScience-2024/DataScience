@@ -175,6 +175,11 @@ class SegmentDataset(Dataset):
     def __len__(self):
         return len(self.cache)
 
+    def padding(self, data: torch.Tensor):
+        pad_rows = (self.item_max_len - data.size(0)) // 2
+        padded_data = torch.nn.functional.pad(data, (0, 0, pad_rows, pad_rows), value=0)
+        return padded_data
+
     def __getitem__(self, idx):
         game_id, union_id, mask = self.cache[idx]
         tracking_data = self.nfl_data[game_id]
@@ -189,5 +194,7 @@ class SegmentDataset(Dataset):
             features = data[:, :-1]
             target = data[:, -1][0]
         # one hot encoding for label
-        target = torch.nn.functional.one_hot(target.to(torch.int64), num_classes=self.label_size()).squeeze(0)
+        if features.size(0) < self.item_max_len:
+            features = self.padding(features)
+        target = torch.nn.functional.one_hot(target.to(torch.int64) + 1, num_classes=self.label_size()).squeeze(0)
         return features, target

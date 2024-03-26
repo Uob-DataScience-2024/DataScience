@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 import torch
 from loguru import logger
+from tqdm import tqdm
 
 from playdata import PlayDataItem, GamePlayData
 from pffdata import PffDataItem, GamePffData
@@ -191,7 +192,7 @@ class GameNFLData:
         df_pff = pd.read_csv(filename_pff)
         df_play = pd.read_csv(filename_play)
         loaded = {}
-        for gameId in df_tracking['gameId'].unique():
+        for gameId in tqdm(df_tracking['gameId'].unique(), desc=f"Loading"):
             sub_df_tracking = df_tracking[df_tracking['gameId'] == gameId]
             sub_df_pff = df_pff[df_pff['gameId'] == gameId]
             sub_df_play = df_play[df_play['gameId'] == gameId]
@@ -208,7 +209,7 @@ class GameNFLData:
             sub_df_play = df_play[df_play['gameId'] == gameId]
             preload[gameId] = (sub_df_pff, sub_df_play)
         loaded = {}
-        for filename_tracking in filename_tracking_list:
+        for filename_tracking in tqdm(filename_tracking_list, desc=f"Loading files({len(filename_tracking_list)})", total=len(filename_tracking_list)):
             week = re.search(r'week(\d+)', filename_tracking).group(1)
             week = str(int(week))
             df_tracking = pd.read_csv(filename_tracking)

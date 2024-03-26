@@ -11,7 +11,7 @@ from tqdm import tqdm
 
 from loguru import logger
 
-data_dir = '../test_data'
+data_dir = '../data'
 if len(list(filter(lambda x: x.endswith('.csv'), os.listdir(data_dir)))) == 0:
     logger.warning('No csv file found in data directory, now run test data')
     data_dir = '../test_data'
