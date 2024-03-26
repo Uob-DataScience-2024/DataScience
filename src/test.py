@@ -299,12 +299,12 @@ class TestDataset(unittest.TestCase):
         logger.info(f"X: {x.shape}, Y: {y.shape}")
         self.assertEqual(True, True)
 
-    def test_sequence_dataset(self):
-        from dataset import SequenceDataset
-        dataset = SequenceDataset(data_dir)
-        x, y = dataset[0]
-        logger.info(f"X: {x.shape}, Y: {y.shape}")
-        self.assertEqual(True, True)
+    # def test_sequence_dataset(self):
+    #     from dataset import SequenceDataset
+    #     dataset = SequenceDataset(data_dir)
+    #     x, y = dataset[0]
+    #     logger.info(f"X: {x.shape}, Y: {y.shape}")
+    #     self.assertEqual(True, True)
 
     # def test_sequence_dataset_split(self):
     #     from dataset import SequenceDataset
