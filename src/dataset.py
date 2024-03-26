@@ -81,6 +81,38 @@ class SequenceDataset(Dataset):
         }
         self.input_features = input_features
         self.target_feature = target_feature
+        self.input_feature_label = {}
+        self.item_max_len = 0
+        if self.input_features is not None:
+            self.preprocess()
+        self.label_map = self.build_label_map() if self.target_feature is not None else {}
+
+    def preprocess(self):
+        self.input_feature_label = {col: [] for col in self.input_features}
+        self.item_max_len = 0
+        for game_id in tqdm(self.game_ids, desc='Preprocessing data', total=len(self.game_ids)):
+            self.nfl_data[game_id].set_home_visitor(*self.home_visitor[game_id])
+            tracking_data = self.nfl_data[game_id]
+            for col in self.input_features:
+                if pd.api.types.is_string_dtype(tracking_data.df[col]):
+                    labels = tracking_data.df[col].unique().tolist()
+                    self.input_feature_label[col] += labels
+        self.input_feature_label = {col: list(set(self.input_feature_label[col])) for col in self.input_features if len(self.input_feature_label[col]) > 0}
+
+    def build_label_map(self):
+        temp = []
+        for game_id in self.game_ids:
+            df = self.nfl_data[game_id].df
+            col = self.target_feature if self.target_feature is not None else df.columns[-1]
+            label = df[col].unique()
+            for i in label:
+                if i not in temp and not pd.isna(i):
+                    temp.append(i)
+        temp.sort()
+        return temp
+
+    def label_size(self):
+        return len(self.label_map)
 
     def __len__(self):
         return len(self.game_ids) * 4 if self.split else len(self.game_ids)
@@ -95,7 +127,8 @@ class SequenceDataset(Dataset):
         tracking_data = self.nfl_data[game_id]
         tracking_data.set_home_visitor(*self.home_visitor[game_id])
         partition = self.spilt_data[game_id][quarter] if self.split else None
-        data, _ = tracking_data.tensor(resize_range_overwrite={}, category_labels_overwrite={},
+        category_labels_overwrite = {self.target_feature: self.label_map, **self.input_feature_label} if self.target_feature is not None else self.input_feature_label
+        data, _ = tracking_data.tensor(resize_range_overwrite={}, category_labels_overwrite=category_labels_overwrite,
                                        columns=self.input_features + [self.target_feature] if self.input_features is not None and self.target_feature is not None else None, play_id_filter=partition)
         if self.input_features is not None and self.target_feature is not None:
             features = data[:, :len(self.input_features)]
@@ -103,6 +136,8 @@ class SequenceDataset(Dataset):
         else:
             features = data[:, :-1]
             target = data[:, -1]
+        # one hot encoding for label
+        target = torch.nn.functional.one_hot(target.to(torch.int64) + 1, num_classes=self.label_size() + 1).squeeze(1)
         return features, target
 
 
@@ -129,7 +164,7 @@ class SegmentDataset(Dataset):
         self.label_map = self.build_label_map()
 
     def preprocess(self):
-        self.input_feature_label = {col: [] for col in self.input_features}
+        self.input_feature_label = {col: [] for col in self.input_features} if self.input_features is not None else {}
         self.item_max_len = 0
         for game_id in tqdm(self.game_ids, desc='Preprocessing data', total=len(self.game_ids)):
             self.nfl_data[game_id].set_home_visitor(*self.home_visitor[game_id])
@@ -138,10 +173,11 @@ class SegmentDataset(Dataset):
             for union_id, mask in masks.items():
                 self.cache.append((game_id, union_id, mask))
                 self.item_max_len = max(self.item_max_len, len(mask))
-            for col in self.input_features:
-                if pd.api.types.is_string_dtype(tracking_data.df[col]):
-                    labels = tracking_data.df[col].unique().tolist()
-                    self.input_feature_label[col] += labels
+            if self.input_features is not None:
+                for col in self.input_features:
+                    if pd.api.types.is_string_dtype(tracking_data.df[col]):
+                        labels = tracking_data.df[col].unique().tolist()
+                        self.input_feature_label[col] += labels
             # self.data[game_id] = []
             # for union_id, mask in masks.items():
             #     data, _ = tracking_data.tensor(resize_range_overwrite={}, category_labels_overwrite={},
@@ -155,7 +191,7 @@ class SegmentDataset(Dataset):
             #         target = data[:, -1]
             #     self.cache.append((features, target))
             #     self.data[game_id].append(len(self.cache) - 1)
-        self.input_feature_label = {col: list(set(self.input_feature_label[col])) for col in self.input_features if len(self.input_feature_label[col]) > 0}
+        self.input_feature_label = {col: list(set(self.input_feature_label[col])) for col in self.input_features if len(self.input_feature_label[col]) > 0} if self.input_features is not None else {}
 
     def build_label_map(self):
         temp = []
@@ -196,5 +232,5 @@ class SegmentDataset(Dataset):
         # one hot encoding for label
         if features.size(0) < self.item_max_len:
             features = self.padding(features)
-        target = torch.nn.functional.one_hot(target.to(torch.int64) + 1, num_classes=self.label_size()).squeeze(0)
+        target = torch.nn.functional.one_hot(target.to(torch.int64) + 1, num_classes=self.label_size() + 1).squeeze(0)
         return features, target

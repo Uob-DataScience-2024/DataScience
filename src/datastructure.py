@@ -7,6 +7,7 @@ import torch
 from loguru import logger
 from tqdm import tqdm
 
+import concurrent.futures
 from playdata import PlayDataItem, GamePlayData
 from pffdata import PffDataItem, GamePffData
 from trackingdata import TrackingDataItem, GameTrackingData
@@ -209,7 +210,8 @@ class GameNFLData:
             sub_df_play = df_play[df_play['gameId'] == gameId]
             preload[gameId] = (sub_df_pff, sub_df_play)
         loaded = {}
-        for filename_tracking in tqdm(filename_tracking_list, desc=f"Loading files({len(filename_tracking_list)})", total=len(filename_tracking_list)):
+
+        def load(filename_tracking):
             week = re.search(r'week(\d+)', filename_tracking).group(1)
             week = str(int(week))
             df_tracking = pd.read_csv(filename_tracking)
@@ -218,6 +220,13 @@ class GameNFLData:
                 sub_df_tracking = df_tracking[df_tracking['gameId'] == gameId]
                 sub_df_pff, sub_df_play = preload[gameId]
                 loaded[gameId] = GameNFLData(gameId, sub_df_tracking, sub_df_pff, sub_df_play, week)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            tasks = executor.map(load, filename_tracking_list)
+            for _ in tqdm(tasks, desc=f"Loading files({len(filename_tracking_list)}", total=len(filename_tracking_list)):
+                pass
+            # for filename_tracking in tqdm(filename_tracking_list, desc=f"Loading files({len(filename_tracking_list)})", total=len(filename_tracking_list)):
+
         return loaded
 
     def __str__(self) -> str:

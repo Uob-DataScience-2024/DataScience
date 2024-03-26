@@ -15,9 +15,9 @@ logger.configure(handlers=[{"sink": RichHandler(), "format": "{message}"}])
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 hyperparameters_model = {
-    'input_dim': 23,
+    'input_dim': 14,
     'hidden_dim': 256,
-    'output_dim': 55,
+    'output_dim': 13,
     'batch_first': True,
     'num_layers': 2,
     'dropout': 0.2,
@@ -167,7 +167,7 @@ def main_transformer():
             optimizer.step()
             output = torch.argmax(output, dim=2)
             target = torch.argmax(target, dim=2)
-            accuracy = (output == target).sum().item() / (output.shape[0] * output.shape[1])
+            accuracy = (output == target)[target != 0].sum().item() / (output.shape[0] * output.shape[1])
             losses.append(loss.item())
             accuracies.append(accuracy)
             progress.set_description_str(
