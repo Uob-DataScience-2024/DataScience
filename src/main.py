@@ -1,3 +1,4 @@
+import datetime
 import os
 
 import numpy as np
@@ -135,6 +136,14 @@ def init_model(config: TrainingConfigure, dataset):
     return model
 
 
+def save_model(model, model_dir, model_name):
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+    current_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
+    model_name = f"{model_name}_{model.__class__.__name__}_{current_time}.pt"
+    torch.save(model.state_dict(), os.path.join(model_dir, model_name))
+
+
 def run_task(config: TrainingConfigure, logdir):
     dataset = SequenceDataset('../data', input_features=config.input_features, target_feature=config.target_feature, split=config.split)
     split_ratio = config.training_hyperparameters.split_ratio
@@ -161,7 +170,7 @@ def run_task(config: TrainingConfigure, logdir):
     if not os.path.exists(logdir):
         os.makedirs(logdir)
     writer = torch.utils.tensorboard.SummaryWriter(logdir)
-
+    last_acc = 0
     for epoch in range(epochs):
         losses = []
         accuracies_all = []
@@ -203,6 +212,9 @@ def run_task(config: TrainingConfigure, logdir):
         writer.add_scalar('Test Accuracy All', acc, epoch)
         writer.add_scalar('Test Accuracy No NA', acc_na, epoch)
         writer.add_scalar('Test Loss', loss, epoch)
+        if acc > last_acc:
+            save_model(model, logdir, config.name + f'_best({acc * 100:.2f}%)')
+            last_acc = acc
 
     writer.close()
 
