@@ -2,7 +2,7 @@ from loguru import logger
 from rich.logging import RichHandler
 from tqdm.rich import tqdm
 
-from dataset import DatasetPffBlockType, DatasetPffBlockTypeAutoSpilt
+from dataset import DatasetPffBlockType, DatasetPffBlockTypeAutoSpilt, DatasetPffBlockTypeScore
 from model import *
 import torch
 import torch.utils.data
@@ -15,9 +15,9 @@ logger.configure(handlers=[{"sink": RichHandler(), "format": "{message}"}])
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 hyperparameters_model = {
-    'input_dim': 12,
+    'input_dim': 23,
     'hidden_dim': 256,
-    'output_dim': 13,
+    'output_dim': 55,
     'batch_first': True,
     'num_layers': 2,
     'dropout': 0.2,
@@ -79,7 +79,7 @@ def init_transformers():
 
 
 def main():
-    dataset = DatasetPffBlockTypeAutoSpilt('../data', cache=True)
+    dataset = DatasetPffBlockTypeScore('../test_data', cache=True)
     train_set, test_set = torch.utils.data.random_split(dataset,
                                                         [int(len(dataset) * hyperparameters_training['split_ratio']), len(dataset) - int(len(dataset) * hyperparameters_training['split_ratio'])])
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=hyperparameters_training['batch_size'], shuffle=True, collate_fn=collate_fn)
@@ -181,4 +181,4 @@ def main_transformer():
 
 
 if __name__ == '__main__':
-    main_transformer()
+    main()
