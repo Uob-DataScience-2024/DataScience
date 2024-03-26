@@ -8,9 +8,9 @@ from loguru import logger
 from tqdm import tqdm
 
 import concurrent.futures
-from playdata import PlayDataItem, GamePlayData
-from pffdata import PffDataItem, GamePffData
-from trackingdata import TrackingDataItem, GameTrackingData
+from data.playdata import PlayDataItem, GamePlayData
+from data.pffdata import PffDataItem, GamePffData
+from data.trackingdata import TrackingDataItem, GameTrackingData
 
 
 class NFLDataItem:
