@@ -9,6 +9,7 @@ from playdata import PlayDataItem, GamePlayData
 from pffdata import PffDataItem, GamePffData
 from trackingdata import TrackingDataItem, GameTrackingData
 from tqdm import tqdm
+from training_config import TrainingConfigure
 
 from loguru import logger
 
@@ -348,6 +349,11 @@ class TestNetwork(unittest.TestCase):
         data = torch.randn(1, 1, 203, 14)
         out = model(data)
         logger.info(f"Out: {out.shape}")
+        self.assertEqual(True, True)
+
+    def test_config(self):
+        config = TrainingConfigure()
+        logger.info(f"Config: {config.to_json()}")
         self.assertEqual(True, True)
 
 
