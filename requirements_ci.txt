@@ -10,3 +10,4 @@ gradio
 torch
 torchvision
 tensorboard
+captum
