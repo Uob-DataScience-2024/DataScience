@@ -361,14 +361,11 @@ class TestNetwork(unittest.TestCase):
     def test_captum(self):
         from captum.attr import IntegratedGradients
         model = Seq2SeqLSTM(14, 32, 14, num_layers=2)
-        model
         input_data = torch.randn(1, 203, 14)
-        input_data = input_data
 
         ig = IntegratedGradients(model)
         output = model(input_data)
-        target = output.max(dim=1)[0]
-        attributions, delta = ig.attribute(input_data, target=target, return_convergence_delta=True)
+        attributions, delta = ig.attribute(input_data, target=(0, 0), return_convergence_delta=True)
         self.assertEqual(True, True)
 
 
