@@ -361,9 +361,9 @@ class TestNetwork(unittest.TestCase):
     def test_captum(self):
         from captum.attr import IntegratedGradients
         model = Seq2SeqLSTM(14, 32, 14, num_layers=2)
-        model.cuda()
+        model
         input_data = torch.randn(1, 203, 14)
-        input_data = input_data.cuda()
+        input_data = input_data
 
         ig = IntegratedGradients(model)
         output = model(input_data)
