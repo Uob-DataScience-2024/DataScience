@@ -1,10 +1,16 @@
 import re
 from datetime import datetime
 
+import numpy as np
 import pandas as pd
-from playdata import PlayDataItem, GamePlayData
-from pffdata import PffDataItem, GamePffData
-from trackingdata import TrackingDataItem, GameTrackingData
+import torch
+from loguru import logger
+from tqdm import tqdm
+
+import concurrent.futures
+from data.playdata import PlayDataItem, GamePlayData
+from data.pffdata import PffDataItem, GamePffData
+from data.trackingdata import TrackingDataItem, GameTrackingData
 
 
 class NFLDataItem:
@@ -92,6 +98,22 @@ class NFLDataItem:
         'pff_playAction',
     ]
 
+    resize_range = {
+        'x': (0, 120),
+        'y': (0, 53.3),
+        's': None,
+        'a': None,
+        'dis': None,
+        'o': (0, 360),
+        'dir': (0, 360),
+    }
+
+    category_labels = {
+
+    }
+
+    block_columns = ['gameId', 'playDescription', 'union_id', 'preSnapHomeScore', 'preSnapVisitorScore']
+
     def __init__(self, week: str, gameId: int, playId: int, nflId: int, frameId: int, dt: datetime, number_payload: dict, binary_payload: dict, text_payload: dict):
         self.week = week
         self.gameId = gameId
@@ -137,6 +159,7 @@ class NFLDataItem:
 
 class GameNFLData:
     def __init__(self, gameId: int, df_tracking: pd.DataFrame, df_pff: pd.DataFrame, df_play: pd.DataFrame, week: str = ''):
+        self.home_visitor = None
         self.gameId = gameId
         self.date_start = df_tracking['time'].min()
         self.date_end = df_tracking['time'].max()
@@ -145,15 +168,15 @@ class GameNFLData:
         self.play = GamePlayData(gameId, df_play)
         self.df = self.merge()
 
-    def merge(self):
+    def merge(self) -> pd.DataFrame:
         df_tracking = self.tracking.df.copy()
         df_pff = self.pff.df.copy()
         df_play = self.play.df.copy()
         df_tracking = df_tracking.dropna(subset=['nflId', 'playId'])
         df_pff = df_pff.dropna(subset=['nflId', 'playId'])
         df_play = df_play.dropna(subset=['playId'])
-        df_tracking['union_id'] = df_tracking['nflId'].astype(str) + df_tracking['playId'].astype(str)
-        df_pff['union_id'] = df_pff['nflId'].astype(str) + df_pff['playId'].astype(str)
+        df_tracking['union_id'] = df_tracking['nflId'].astype(int).astype(str) + df_tracking['playId'].astype(int).astype(str)
+        df_pff['union_id'] = df_pff['nflId'].astype(int).astype(str) + df_pff['playId'].astype(int).astype(str)
         df_pff = df_pff.drop(columns=['nflId', 'playId', 'gameId'])
         df_play = df_play.drop(columns=['gameId'])
 
@@ -170,7 +193,7 @@ class GameNFLData:
         df_pff = pd.read_csv(filename_pff)
         df_play = pd.read_csv(filename_play)
         loaded = {}
-        for gameId in df_tracking['gameId'].unique():
+        for gameId in tqdm(df_tracking['gameId'].unique(), desc=f"Loading"):
             sub_df_tracking = df_tracking[df_tracking['gameId'] == gameId]
             sub_df_pff = df_pff[df_pff['gameId'] == gameId]
             sub_df_play = df_play[df_play['gameId'] == gameId]
@@ -187,7 +210,8 @@ class GameNFLData:
             sub_df_play = df_play[df_play['gameId'] == gameId]
             preload[gameId] = (sub_df_pff, sub_df_play)
         loaded = {}
-        for filename_tracking in filename_tracking_list:
+
+        def load(filename_tracking):
             week = re.search(r'week(\d+)', filename_tracking).group(1)
             week = str(int(week))
             df_tracking = pd.read_csv(filename_tracking)
@@ -196,6 +220,13 @@ class GameNFLData:
                 sub_df_tracking = df_tracking[df_tracking['gameId'] == gameId]
                 sub_df_pff, sub_df_play = preload[gameId]
                 loaded[gameId] = GameNFLData(gameId, sub_df_tracking, sub_df_pff, sub_df_play, week)
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=8) as executor:
+            tasks = executor.map(load, filename_tracking_list)
+            for _ in tqdm(tasks, desc=f"Loading files({len(filename_tracking_list)}", total=len(filename_tracking_list)):
+                pass
+            # for filename_tracking in tqdm(filename_tracking_list, desc=f"Loading files({len(filename_tracking_list)})", total=len(filename_tracking_list)):
+
         return loaded
 
     def __str__(self) -> str:
@@ -224,3 +255,101 @@ class GameNFLData:
         play_args['text_payload'] = {col_name: play_row[col_name] for col_name, dtype in self.play.text_list}
 
         return NFLDataItem.from_object(TrackingDataItem(self.tracking.week, **tracking_args), PffDataItem(**pff_args), PlayDataItem(**play_args))
+
+    def get_quarter_partition(self):
+        return self.play.get_quarter_partition()
+
+    def set_home_visitor(self, home, visitor):
+        self.home_visitor = [home, visitor]
+
+    def statistics(self):
+        return self.df.describe()
+
+    def union_id_mask(self):
+        """Return a index mask for each union_id"""
+        group = self.df.groupby('union_id')
+        # union_id_mask = group.apply(lambda x: x.index)
+        mask = {key: group.index for key, group in group}
+        return mask
+
+    def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32, play_id_filter=None, mask=None):
+        df = self.df.copy()
+        if mask is not None:
+            df = df[df.index.isin(mask)]
+        if play_id_filter is not None:
+            df = df[df['playId'].isin(play_id_filter)]
+        if self.home_visitor is not None:
+            category_labels_overwrite['team'] = self.home_visitor
+        if columns is None:
+            columns = df.columns
+        elif len(list(filter(lambda x: x not in df.columns, columns))):
+            raise ValueError(f"Columns not found in dataframe: {list(filter(lambda x: x not in df.columns, columns))}")
+        columns = list(filter(lambda x: x not in NFLDataItem.block_columns, columns))
+        types = {column: df[column].dtype for column in columns}
+        statistics = self.statistics()
+        resize_range = NFLDataItem.resize_range.copy()
+        resize_range.update(resize_range_overwrite)
+        category_labels: dict[str, None | list] = NFLDataItem.category_labels.copy()
+        category_labels.update(category_labels_overwrite)
+        data_map = {}
+        for i, column in enumerate(columns):
+            if pd.api.types.is_numeric_dtype(types[column]):
+                if column in resize_range.keys() and resize_range[column] is not None:
+                    vMin, vMax = resize_range[column]
+                    df[column] = (df[column] - vMin) / (vMax - vMin)
+                else:
+                    vMin, vMax = statistics[column]['min'], statistics[column]['max']
+                    df[column] = (df[column] - vMin) / (vMax - vMin)
+                data_map[column] = {
+                    "type": "number",
+                    "min": vMin,
+                    "max": vMax,
+                    "index": i,
+                }
+            elif pd.api.types.is_string_dtype(types[column]):
+                if column in category_labels.keys() and category_labels[column] is not None:
+                    label_mapping = {k: v for v, k in enumerate(category_labels[column])}
+                    df[column] = df[column].map(label_mapping)
+                    data_map[column] = {
+                        "type": "category",
+                        "labels": category_labels[column],
+                        "index": i,
+                    }
+                else:
+                    labels = df[column].unique()
+                    # remove na
+                    if pd.isna(labels).any():
+                        labels = list(filter(lambda x: not pd.isna(x), labels))
+                    category = pd.Categorical(df[column], categories=labels)
+                    df[column] = category.codes
+                    data_map[column] = {
+                        "type": "category",
+                        "labels": labels,
+                        "index": i,
+                    }
+            elif pd.api.types.is_bool_dtype(types[column]):
+                df[column] = df[column].astype(np.int8)
+                data_map[column] = {
+                    "type": "binary",
+                    "index": i,
+                }
+            elif pd.api.types.is_datetime64_any_dtype(types[column]):
+                # to timestamp ms
+                df[column] = df[column].astype(np.int64) // 10 ** 6
+                start = df[column].min()
+                end = df[column].max()
+                df[column] = ((df[column] - start) / (end - start)) * 10
+                data_map[column] = {
+                    "type": "datetime",
+                    "mode": "timestamp",
+                    "index": i,
+                }
+            else:
+                logger.warning(f"Column {column} is not a valid type")
+            if not pd.api.types.is_numeric_dtype(df[column].dtype):
+                pass
+        # all nan to -1
+        df = df[columns]
+        df = df.fillna(-1)
+        tensor = torch.tensor(df.values, dtype=dtype)
+        return tensor, data_map
