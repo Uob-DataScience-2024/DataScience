@@ -22,6 +22,7 @@ class GameFootBallTrackingData(GameTrackingData):
             sub_df = sub_df[pd.isna(sub_df['nflId'])]
             date_start = sub_df['time'].min()
             date_end = sub_df['time'].max()
+            sub_df = sub_df.reset_index(drop=True)
             loaded[game_id] = GameTrackingData(game_id, date_start, date_end, week, sub_df)
         return loaded
 
@@ -31,3 +32,11 @@ class GameFootBallTrackingData(GameTrackingData):
         for filename in filenames:
             loaded.update(GameTrackingData.load(filename))
         return loaded
+
+    @staticmethod
+    def from_tracking_data(tracking_data: GameTrackingData):
+        df = tracking_data.df[pd.isna(tracking_data.df['nflId'])]
+        date_start = df['time'].min()
+        date_end = df['time'].max()
+        df = df.reset_index(drop=True)
+        return GameTrackingData(tracking_data.game_id, date_start, date_end, tracking_data.week, df)

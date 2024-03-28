@@ -182,6 +182,7 @@ class GameNFLData:
 
         result = pd.merge(df_tracking, df_pff, on='union_id', how='left')
         result = pd.merge(result, df_play, on='playId', how='left')
+        result = result.reset_index(drop=True)
         return result
 
     @staticmethod
