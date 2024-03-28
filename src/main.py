@@ -144,7 +144,7 @@ def save_model(model, model_dir, model_name):
     torch.save(model.state_dict(), os.path.join(model_dir, model_name))
 
 
-def run_task(config: TrainingConfigure, logdir):
+def run_task(config: TrainingConfigure, logdir, model_path=None):
     dataset = SequenceDataset('../data', input_features=config.input_features, target_feature=config.target_feature, split=config.split)
     split_ratio = config.training_hyperparameters.split_ratio
     train_set, test_set = torch.utils.data.random_split(dataset, [int(len(dataset) * split_ratio), len(dataset) - int(len(dataset) * split_ratio)])
@@ -152,6 +152,8 @@ def run_task(config: TrainingConfigure, logdir):
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=2, shuffle=False, collate_fn=collate_fn)
 
     model = init_model(config, dataset)
+    if model_path is not None:
+        model.load_state_dict(torch.load(model_path))
     criterion = config.training_hyperparameters.criterion()
     optimizer = config.training_hyperparameters.optimizer(model.parameters(), lr=config.training_hyperparameters.learning_rate)
     scheduler = config.training_hyperparameters.scheduler(optimizer, **config.training_hyperparameters.scheduler_hyperparameters) if config.training_hyperparameters.scheduler != 'None' else None
