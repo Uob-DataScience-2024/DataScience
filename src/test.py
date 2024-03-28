@@ -7,8 +7,8 @@ import torch
 from data import NFLDataItem, GameNFLData, PlayDataItem, GamePlayData, PffDataItem, GamePffData, TrackingDataItem, GameTrackingData
 from tqdm import tqdm
 
-from model import Seq2SeqLSTM
-from training_config import TrainingConfigure
+from network import Seq2SeqLSTM
+from utils.training_config import TrainingConfigure
 
 from loguru import logger
 
@@ -292,7 +292,7 @@ class DataClassMethodTest(unittest.TestCase):
 
 class TestDataset(unittest.TestCase):
     def test_TrackingDataset(self):
-        from dataset import TrackingDataset
+        from network import TrackingDataset
         dataset = TrackingDataset(data_dir)
         x, y = dataset[0]
         logger.info(f"X: {x.shape}, Y: {y.shape}")
@@ -324,7 +324,7 @@ class TestDataset(unittest.TestCase):
     #     self.assertEqual(X1.shape[0] + X2.shape[0] + X3.shape[0] + X4.shape[0], x.shape[0])
 
     def test_sequence_dataset_custom_col(self):
-        from dataset import SequenceDataset
+        from network import SequenceDataset
         input_features = ['playId', 'nflId', 'frameId', 'time', 'jerseyNumber', 'team', 'playDirection', 'x', 'y', 's', 'a', 'dis', 'o', 'dir']
         logger.info(f"Input Features({len(input_features)}): {input_features}")
         dataset = SequenceDataset(data_dir, input_features=input_features, target_feature='pff_blockType')
@@ -333,7 +333,7 @@ class TestDataset(unittest.TestCase):
         self.assertEqual(True, True)
 
     def test_segment_dataset(self):
-        from dataset import SegmentDataset
+        from network import SegmentDataset
         input_features = ['playId', 'nflId', 'frameId', 'time', 'jerseyNumber', 'team', 'playDirection', 'x', 'y', 's', 'a', 'dis', 'o', 'dir']
         dataset = SegmentDataset(data_dir, input_features=input_features, target_feature='pff_blockType')
         x, y = dataset[832]
@@ -343,7 +343,7 @@ class TestDataset(unittest.TestCase):
 
 class TestNetwork(unittest.TestCase):
     def test_same_size_cnn(self):
-        from model import SameSizeCNN
+        from network import SameSizeCNN
         model = SameSizeCNN(1, 32, 12)
         data = torch.randn(1, 1, 203, 14)
         out = model(data)

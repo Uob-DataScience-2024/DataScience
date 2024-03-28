@@ -1,8 +1,6 @@
 import unittest
-
-from training_config import TrainingConfigure
-from model_visualization import calculate_model_gradient, visualize_model, calculate_model_gradient_single_label, visualize_model_single_label
-
+from utils import TrainingConfigure
+from visual import visualize_model, visualize_model_single_label
 
 class VisualTest(unittest.TestCase):
     # def test_first(self):

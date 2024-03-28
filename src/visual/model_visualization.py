@@ -5,9 +5,9 @@ import random
 from loguru import logger
 from tqdm import tqdm
 
-from dataset import SequenceDataset
+from network import SequenceDataset
 from model import Seq2SeqGRU
-from training_config import TrainingConfigure
+from utils.training_config import TrainingConfigure
 
 
 def calculate_model_gradient(model, x, label_len, seq_samples=100):

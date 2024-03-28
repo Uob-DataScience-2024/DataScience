@@ -8,12 +8,12 @@ from rich.logging import RichHandler
 from tqdm import TqdmExperimentalWarning
 import warnings
 import torch.utils.data
-from dataset import TrackingDataset, SequenceDataset
-from model import *
+from network import SequenceDataset
+from network import Seq2SeqGRU, Seq2SeqLSTM, SameSizeCNN
 from tqdm.rich import tqdm
 import torch.utils.tensorboard
 
-from training_config import TrainingConfigure
+from utils import TrainingConfigure
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 logger.configure(handlers=[{"sink": RichHandler(), "format": "{message}"}])
