@@ -6,7 +6,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from network import SequenceDataset
-from model import Seq2SeqGRU
+from network import Seq2SeqGRU
 from utils.training_config import TrainingConfigure
 
 
