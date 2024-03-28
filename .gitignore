@@ -4,3 +4,4 @@
 /data/cache/*.csv
 /data/cache/*.json
 /test_data/cache
+/src/logdir/*
