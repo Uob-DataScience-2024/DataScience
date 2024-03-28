@@ -4,10 +4,7 @@ import unittest
 import pandas as pd
 import torch
 
-from data.datastructure import NFLDataItem, GameNFLData
-from data.playdata import PlayDataItem, GamePlayData
-from data.pffdata import PffDataItem, GamePffData
-from data.trackingdata import TrackingDataItem, GameTrackingData
+from data import NFLDataItem, GameNFLData, PlayDataItem, GamePlayData, PffDataItem, GamePffData, TrackingDataItem, GameTrackingData
 from tqdm import tqdm
 
 from model import Seq2SeqLSTM
