@@ -2,7 +2,7 @@ import json
 
 import torch
 
-from model import Seq2SeqLSTM, Seq2SeqGRU, SameSizeCNN
+from network import Seq2SeqLSTM, Seq2SeqGRU, SameSizeCNN
 
 models = {
     'LSTM': Seq2SeqLSTM,

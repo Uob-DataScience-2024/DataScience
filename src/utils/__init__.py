@@ -1,1 +1,1 @@
-from training_config import TrainingConfigure
+from .training_config import TrainingConfigure
