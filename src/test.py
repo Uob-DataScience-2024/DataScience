@@ -4,7 +4,7 @@ import unittest
 import pandas as pd
 import torch
 
-from data import NFLDataItem, GameNFLData, PlayDataItem, GamePlayData, PffDataItem, GamePffData, TrackingDataItem, GameTrackingData
+from data import NFLDataItem, GameNFLData, PlayDataItem, GamePlayData, PffDataItem, GamePffData, TrackingDataItem, GameTrackingData, GameFootBallTrackingData
 from tqdm import tqdm
 
 from network import Seq2SeqLSTM
@@ -188,6 +188,19 @@ class DataClassInitTest(unittest.TestCase):
         logger.info(f'GameNFLData: {data}')
         logger.info(f'First Item: {item}')
         logger.info('Testing load all done')
+        self.assertEqual(True, True)
+
+    def test_football_data(self):
+        logger.info('Testing football data')
+        weeks = [x for x in os.listdir(data_dir) if x.startswith('week')]
+        if len(weeks) == 0:
+            self.fail("No week file found")
+        weeks = [os.path.join(data_dir, x) for x in weeks]
+        foot_ball = GameFootBallTrackingData.load(weeks[0])
+        data = foot_ball[list(foot_ball.keys())[0]]
+        item = data[0]
+        logger.info(f'GameFootBallTrackingData: {data}')
+        logger.info(f'First Item: {item}')
         self.assertEqual(True, True)
 
 
