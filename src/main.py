@@ -43,6 +43,46 @@ def collate_fn(batch):
     return torch.stack(X).to(device, dtype=torch.float32), torch.stack(Y).to(device, dtype=torch.float32)
 
 
+def execute_cell(model: torch.nn.Module, x, y, criterion, optimizer=None):
+    pred_y = model(x)
+    loss = criterion(pred_y, y)
+    if optimizer is not None:
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad()
+
+    pred_y = torch.argmax(pred_y, dim=2)
+    y = torch.argmax(y, dim=2)
+    accuracy_all = (pred_y == y).sum().item() / (pred_y.shape[0] * pred_y.shape[1])
+    accuracy_no_na = (pred_y == y)[y != 0].sum().item() / (pred_y.shape[0] * pred_y.shape[1])
+    return loss, accuracy_all, accuracy_no_na
+
+
+def execute_cell_split(model: torch.nn.Module, x, y, split_plan, criterion, optimizer=None, batch_first=True):
+    loss = None
+    acc_all = 0
+    acc_no_na = 0
+    for sub_seq_start, sub_seq_end in split_plan:
+        if batch_first:
+            sub_x = x[:, sub_seq_start:sub_seq_end, :]
+            sub_y = y[:, sub_seq_start:sub_seq_end, :]
+        else:
+            sub_x = x[sub_seq_start:sub_seq_end, :, :]
+            sub_y = y[sub_seq_start:sub_seq_end, :, :]
+        sub_loss, sub_acc_all, sub_acc_no_na = execute_cell(model, sub_x, sub_y, criterion, optimizer)
+        if loss is None:
+            loss = sub_loss
+        else:
+            loss += sub_loss
+        acc_all += sub_acc_all
+        acc_no_na += sub_acc_no_na
+
+    loss /= len(split_plan)
+    acc_all /= len(split_plan)
+    acc_no_na /= len(split_plan)
+    return loss, acc_all, acc_no_na
+
+
 def test(model, criterion, test_loader):
     model.eval()
     accuracies_all = []
