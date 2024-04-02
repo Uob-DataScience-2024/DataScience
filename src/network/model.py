@@ -38,10 +38,10 @@ class Seq2SeqLSTM(nn.Module):
     def forward(self, x, encoder_hidden=None, decoder_hidden=None, first=False):
         # x: [batch, seq, feature]
         out_hidden = (encoder_hidden is not None and decoder_hidden is not None) or first
-        x, _ = self.encoder(x, encoder_hidden)
-        x, _ = self.decoder(x, decoder_hidden)
+        x, encoder_hidden = self.encoder(x, encoder_hidden)
+        x, decoder_hidden = self.decoder(x, decoder_hidden)
         x = self.linear(x)
-        return x, (encoder_hidden, decoder_hidden) if out_hidden else x, None, None
+        return (x, (encoder_hidden, decoder_hidden)) if out_hidden else x
 
 
 class Seq2SeqGRU(nn.Module):
@@ -55,10 +55,10 @@ class Seq2SeqGRU(nn.Module):
     def forward(self, x, encoder_hidden=None, decoder_hidden=None, first=False):
         # x: [batch, seq, feature]
         out_hidden = (encoder_hidden is not None and decoder_hidden is not None) or first
-        x, _ = self.encoder(x, encoder_hidden)
-        x, _ = self.decoder(x, decoder_hidden)
+        x, encoder_hidden = self.encoder(x, encoder_hidden)
+        x, decoder_hidden = self.decoder(x, decoder_hidden)
         x = self.linear(x)
-        return x, (encoder_hidden, decoder_hidden) if out_hidden else x, None, None
+        return (x, (encoder_hidden, decoder_hidden)) if out_hidden else x
 
 
 class SameSizeCNN(nn.Module):

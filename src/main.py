@@ -26,6 +26,8 @@ hyperparameters_training = {
     'split_ratio': 0.8,
 }
 
+SPLIT_STEP = 256
+
 
 def collate_fn(batch):
     X = []
@@ -43,8 +45,18 @@ def collate_fn(batch):
     return torch.stack(X).to(device, dtype=torch.float32), torch.stack(Y).to(device, dtype=torch.float32)
 
 
-def execute_cell(model: torch.nn.Module, x, y, criterion, optimizer=None):
-    pred_y = model(x)
+def collate_fn_split(batch):
+    x, y = collate_fn(batch)
+    seq_len = x.shape[1]
+    split_plan = [(i, i + SPLIT_STEP) for i in range(0, seq_len, SPLIT_STEP)]
+    return x, y, split_plan
+
+
+def execute_cell(model: torch.nn.Module, x, y, criterion, optimizer=None, encoder_hidden=None, decoder_hidden=None, hidden=False):
+    if hidden:
+        pred_y, (encoder_hidden, decoder_hidden) = model(x, encoder_hidden, decoder_hidden, first=True)
+    else:
+        pred_y = model(x)
     loss = criterion(pred_y, y)
     if optimizer is not None:
         loss.backward()
@@ -55,10 +67,12 @@ def execute_cell(model: torch.nn.Module, x, y, criterion, optimizer=None):
     y = torch.argmax(y, dim=2)
     accuracy_all = (pred_y == y).sum().item() / (pred_y.shape[0] * pred_y.shape[1])
     accuracy_no_na = (pred_y == y)[y != 0].sum().item() / (pred_y.shape[0] * pred_y.shape[1])
-    return loss, accuracy_all, accuracy_no_na
+    return (loss, accuracy_all, accuracy_no_na) if encoder_hidden is None and decoder_hidden is None else (loss, accuracy_all, accuracy_no_na, (encoder_hidden, decoder_hidden))
 
 
 def execute_cell_split(model: torch.nn.Module, x, y, split_plan, criterion, optimizer=None, batch_first=True):
+    encoder_hidden = None
+    decoder_hidden = None
     loss = None
     acc_all = 0
     acc_no_na = 0
@@ -69,7 +83,8 @@ def execute_cell_split(model: torch.nn.Module, x, y, split_plan, criterion, opti
         else:
             sub_x = x[sub_seq_start:sub_seq_end, :, :]
             sub_y = y[sub_seq_start:sub_seq_end, :, :]
-        sub_loss, sub_acc_all, sub_acc_no_na = execute_cell(model, sub_x, sub_y, criterion, optimizer)
+
+        sub_loss, sub_acc_all, sub_acc_no_na, (encoder_hidden, decoder_hidden) = execute_cell(model, sub_x, sub_y, criterion, optimizer, encoder_hidden, decoder_hidden, hidden=True)
         if loss is None:
             loss = sub_loss
         else:
@@ -90,13 +105,8 @@ def test(model, criterion, test_loader):
     losses = []
     with torch.no_grad():
         for i, (data, target) in enumerate(tqdm(test_loader)):
-            output = model(data)
-            loss = criterion(output, target)
+            loss, accuracy_all, accuracy_no_na = execute_cell(model, data, target, criterion)
             losses.append(loss.item())
-            output = torch.argmax(output, dim=2)
-            target = torch.argmax(target, dim=2)
-            accuracy_all = (output == target).sum().item() / (output.shape[0] * output.shape[1])
-            accuracy_no_na = (output == target)[target != 0].sum().item() / (output.shape[0] * output.shape[1])
             accuracies_all.append(accuracy_all)
             accuracies_no_na.append(accuracy_no_na)
 
@@ -131,14 +141,7 @@ def main():
         for i, (data, target) in enumerate(progress := tqdm(train_loader)):
             model.train()
             optimizer.zero_grad()
-            output = model(data)
-            loss = criterion(output, target)
-            loss.backward()
-            optimizer.step()
-            output = torch.argmax(output, dim=2)
-            target = torch.argmax(target, dim=2)
-            accuracy_all = (output == target).sum().item() / (output.shape[0] * output.shape[1])
-            accuracy_no_na = (output == target)[target != 0].sum().item() / (output.shape[0] * output.shape[1])
+            loss, accuracy_all, accuracy_no_na = execute_cell(model, data, target, criterion, optimizer)
             losses.append(loss.item())
             accuracies_all.append(accuracy_all)
             accuracies_no_na.append(accuracy_no_na)
@@ -182,6 +185,11 @@ def save_model(model, model_dir, model_name):
     current_time = datetime.datetime.now().strftime('%Y-%m-%d_%H-%M-%S')
     model_name = f"{model_name}_{model.__class__.__name__}_{current_time}.pt"
     torch.save(model.state_dict(), os.path.join(model_dir, model_name))
+    return os.path.join(model_dir, model_name)
+
+
+def load_model(model, model_path):
+    model.load_state_dict(torch.load(model_path))
 
 
 def run_task(config: TrainingConfigure, logdir, model_path=None):
@@ -213,6 +221,8 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
         os.makedirs(logdir)
     writer = torch.utils.tensorboard.SummaryWriter(logdir)
     last_acc = 0
+    last_acc_na = 0
+    last_model = None
     for epoch in range(epochs):
         losses = []
         accuracies_all = []
@@ -221,14 +231,7 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
         for i, (data, target) in enumerate(progress := tqdm(train_loader)):
             model.train()
             optimizer.zero_grad()
-            output = model(data)
-            loss = criterion(output, target)
-            loss.backward()
-            optimizer.step()
-            output = torch.argmax(output, dim=2)
-            target = torch.argmax(target, dim=2)
-            accuracy_all = (output == target).sum().item() / (output.shape[0] * output.shape[1])
-            accuracy_no_na = (output == target)[target != 0].sum().item() / (output.shape[0] * output.shape[1])
+            loss, accuracy_all, accuracy_no_na = execute_cell(model, data, target, criterion, optimizer)
             losses.append(loss.item())
             accuracies_all.append(accuracy_all)
             accuracies_no_na.append(accuracy_no_na)
@@ -254,9 +257,12 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
         writer.add_scalar('Test Accuracy All', acc, epoch)
         writer.add_scalar('Test Accuracy No NA', acc_na, epoch)
         writer.add_scalar('Test Loss', loss, epoch)
-        if acc > last_acc:
-            save_model(model, logdir, config.name + f'_best({acc * 100:.2f}%)')
+        if acc > last_acc or acc_na > last_acc_na:
+            last_model = save_model(model, logdir, config.name + f'_best({acc * 100:.2f}%)')
             last_acc = acc
+            last_acc_na = acc_na
+        else:
+            load_model(model, last_model)
 
     writer.close()
 
