@@ -1,6 +1,21 @@
 {
-    "input_features": ["playId","nflId","frameId","time","jerseyNumber","team","playDirection","x","y","s","a","dis","o","dir"],
-    "model": "LSTM",
+    "input_features": [
+        "playId",
+        "nflId",
+        "frameId",
+        "time",
+        "jerseyNumber",
+        "team",
+        "playDirection",
+        "x",
+        "y",
+        "s",
+        "a",
+        "dis",
+        "o",
+        "dir"
+    ],
+    "model": "GRU",
     "model_hyperparameters": {
         "dropout": 0.15,
         "hidden_dim": 256,
@@ -9,9 +24,9 @@
     },
     "name": "default",
     "split": true,
-    "target_feature": "pff_role",
+    "target_feature": "preSnapHomeScore",
     "training_hyperparameters": {
-        "batch_size": 4,
+        "batch_size": 8,
         "criterion": "MSELoss",
         "num_epochs": 100,
         "optimizer": "Adam",
@@ -23,6 +38,7 @@
             "gamma": 0.8,
             "step_size": 3
         },
-        "split_ratio": 0.8
+        "split_ratio": 0.8,
+        "sub_sequence": false
     }
 }

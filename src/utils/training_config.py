@@ -133,12 +133,14 @@ class TrainingHyperparameters(dict):
     batch_size = 2
     num_epochs = 100
     split_ratio = 0.8
+    sub_sequence = False
     criterion = criterions['MSELoss']
 
     def __init__(self, **kwargs):
         kwargs['batch_size'] = kwargs.get('batch_size', 2)
         kwargs['num_epochs'] = kwargs.get('num_epochs', 100)
         kwargs['split_ratio'] = kwargs.get('split_ratio', 0.8)
+        kwargs['sub_sequence'] = kwargs.get('sub_sequence', False)
         super(TrainingHyperparameters, self).__init__(**kwargs)
         self.update(kwargs)
         for key, value in self.items():
@@ -186,6 +188,8 @@ class TrainingConfigure(dict):
         kwargs['split'] = kwargs.get('split', True)
         super(TrainingConfigure, self).__init__(**kwargs)
         self.update(kwargs)
+        for key, value in kwargs.items():
+            setattr(self, key, value)
         self.model = models[self.get('model', 'LSTM')]
         self.model_hyperparameters = ModelHyperparameters(**self.get('model_hyperparameters', {}))
         self.training_hyperparameters = TrainingHyperparameters(**self.get('training_hyperparameters', {}))

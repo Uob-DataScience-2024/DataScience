@@ -52,12 +52,17 @@ def collate_fn_split(batch):
     return x, y, split_plan
 
 
-def execute_cell(model: torch.nn.Module, x, y, criterion, optimizer=None, encoder_hidden=None, decoder_hidden=None, hidden=False):
+def execute_cell(model: torch.nn.Module, x, y, criterion, optimizer=None, encoder_hidden=None, decoder_hidden=None, hidden=False, ignore_na=True):
     if hidden:
         pred_y, (encoder_hidden, decoder_hidden) = model(x, encoder_hidden, decoder_hidden, first=True)
     else:
         pred_y = model(x)
-    loss = criterion(pred_y, y)
+    if ignore_na:
+        # y: [batch, seq, feature]
+        # na data: feature[0] == 1
+        loss = criterion(pred_y[y[:, :, 0] != 1], y[y[:, :, 0] != 1])
+    else:
+        loss = criterion(pred_y, y)
     if optimizer is not None:
         loss.backward(retain_graph=hidden)
         optimizer.step()
@@ -86,8 +91,8 @@ def execute_cell_split(progress: Progress, model: torch.nn.Module, x, y, split_p
             sub_y = y[sub_seq_start:sub_seq_end, :, :]
 
         sub_loss, sub_acc_all, sub_acc_no_na, (encoder_hidden, decoder_hidden) = execute_cell(model, sub_x, sub_y, criterion, optimizer, encoder_hidden, decoder_hidden, hidden=True)
-        encoder_hidden = encoder_hidden.detach() if encoder_hidden is torch.Tensor else (encoder_hidden[0].detach(), encoder_hidden[1].detach())
-        decoder_hidden = decoder_hidden.detach() if decoder_hidden is torch.Tensor else (decoder_hidden[0].detach(), decoder_hidden[1].detach())
+        encoder_hidden = encoder_hidden.detach() if type(encoder_hidden) is torch.Tensor else (encoder_hidden[0].detach(), encoder_hidden[1].detach())
+        decoder_hidden = decoder_hidden.detach() if type(decoder_hidden) is torch.Tensor else (decoder_hidden[0].detach(), decoder_hidden[1].detach())
         if loss is None:
             loss = sub_loss
         else:
@@ -95,7 +100,7 @@ def execute_cell_split(progress: Progress, model: torch.nn.Module, x, y, split_p
         acc_all += sub_acc_all
         acc_no_na += sub_acc_no_na
         n = i + 1
-        progress.update(sub_task, description=f'Sub Sequence [{i}/{len(split_plan)}], Loss: {loss.item() / n}, Accuracy All: {(acc_all / n) * 100:.2f}% Accuracy No NA: {(acc_no_na / n) * 100:.2f}%')
+        progress.update(sub_task, description=f'Sub Sequence [{i}/{len(split_plan)}], Loss: {loss.item() / n}, Accuracy All: {(acc_all / n) * 100:.2f}% Accuracy No NA: {(acc_no_na / n) * 100:.2f}%', advance=1)
 
     progress.remove_task(sub_task)
 
@@ -105,7 +110,7 @@ def execute_cell_split(progress: Progress, model: torch.nn.Module, x, y, split_p
     return loss, acc_all, acc_no_na
 
 
-def test(model, criterion, test_loader):
+def test(model, criterion, test_loader, config: TrainingConfigure):
     model.eval()
     accuracies_all = []
     accuracies_no_na = []
@@ -113,12 +118,17 @@ def test(model, criterion, test_loader):
     with torch.no_grad():
         with Progress() as progress:
             task_test = progress.add_task('Testing', total=len(test_loader))
-            for i, (data, target, split) in enumerate(test_loader):
-                loss, accuracy_all, accuracy_no_na = execute_cell_split(progress, model, data, target, split, criterion)
+            for i, data_group in enumerate(test_loader):
+                if config.training_hyperparameters.sub_sequence:
+                    (data, target, split) = data_group
+                    loss, accuracy_all, accuracy_no_na = execute_cell_split(progress, model, data, target, split, criterion)
+                else:
+                    (data, target) = data_group
+                    loss, accuracy_all, accuracy_no_na = execute_cell(model, data, target, criterion)
                 losses.append(loss.item())
                 accuracies_all.append(accuracy_all)
                 accuracies_no_na.append(accuracy_no_na)
-                progress.update(task_test, description=f'Step [{i}/{len(test_loader)}], Loss: {loss.item()}, Accuracy All: {accuracies_all * 100:.2f}% Accuracy No NA: {accuracies_no_na * 100:.2f}%')
+                progress.update(task_test, description=f'Step [{i}/{len(test_loader)}], Loss: {loss.item()}, Accuracy All: {np.mean(accuracies_all) * 100:.2f}% Accuracy No NA: {np.mean(accuracies_no_na) * 100:.2f}%', advance=1)
 
     logger.info(f'Test Accuracy All: {np.mean(accuracies_all) * 100:.2f}%, Test Accuracy No NA: {np.mean(accuracies_no_na) * 100:.2f}%, Test Loss: {np.mean(losses)}')
 
@@ -207,8 +217,8 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
     split_ratio = config.training_hyperparameters.split_ratio
     batch_size = config.training_hyperparameters.batch_size
     train_set, test_set = torch.utils.data.random_split(dataset, [int(len(dataset) * split_ratio), len(dataset) - int(len(dataset) * split_ratio)])
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn_split)
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn_split)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn_split if config.training_hyperparameters.sub_sequence else collate_fn)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn_split if config.training_hyperparameters.sub_sequence else collate_fn)
 
     model = init_model(config, dataset)
     if model_path is not None:
@@ -221,7 +231,10 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
     epochs = config.training_hyperparameters.num_epochs
 
     logger.info("Start training")
+    logger.info(f"Input Feature: {config.input_features}, Target Feature: {config.target_feature}")
     logger.info(f"Epochs: {epochs}, Dataset Size: {len(dataset)}, Train Size: {len(train_set)}, Test Size: {len(test_set)}")
+    logger.info(f"Input Shape: (batch_size, seq_len, {dataset[0][0].shape[1]}), Output Shape: (batch_size, seq_len, {dataset[0][1].shape[1]})")
+    logger.info(f"Batch size: {config.training_hyperparameters.batch_size}, Enable Sub Sequence Train: {config.training_hyperparameters.sub_sequence}")
     logger.info(
         f"Model: {config.model}, Input Size: {config.model_hyperparameters.input_dim}, Hidden Size: {config.model_hyperparameters.hidden_dim}, Num Layers: {config.model_hyperparameters.num_layers}, Dropout: {config.model_hyperparameters.dropout}")
     logger.info(f"Optimizer: {config.training_hyperparameters.optimizer}, Learning Rate: {config.training_hyperparameters.learning_rate}")
@@ -238,18 +251,23 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
         losses = []
         accuracies_all = []
         accuracies_no_na = []
-        window = 10
+        window = 5
         with Progress() as progress:
             task_train = progress.add_task('Training', total=len(train_loader))
-            for i, (data, target, split) in enumerate(train_loader):
+            for i, data_group in enumerate(train_loader):
                 model.train()
                 optimizer.zero_grad()
-                loss, accuracy_all, accuracy_no_na = execute_cell_split(progress, model, data, target, split, criterion, optimizer)
+                if config.training_hyperparameters.sub_sequence:
+                    (data, target, split) = data_group
+                    loss, accuracy_all, accuracy_no_na = execute_cell_split(progress, model, data, target, split, criterion, optimizer)
+                else:
+                    (data, target) = data_group
+                    loss, accuracy_all, accuracy_no_na = execute_cell(model, data, target, criterion, optimizer)
                 losses.append(loss.item())
                 accuracies_all.append(accuracy_all)
                 accuracies_no_na.append(accuracy_no_na)
                 info = f'Epoch [{epoch}/{epochs}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy All: {np.mean(accuracies_all) * 100:.2f}% Accuracy No NA: {np.mean(accuracies_no_na) * 100:.2f}%'
-                progress.update(task_train, description=info)
+                progress.update(task_train, description=info, advance=1)
                 # 需要添加的指标: loss, accuracy, no na acc, learning rate, 对于每个epoch和global step
                 writer.add_scalar('Loss', loss.item(), epoch * len(train_loader) + i)
                 writer.add_scalar('Accuracy All', accuracy_all, epoch * len(train_loader) + i)
@@ -264,14 +282,18 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
                     accuracies_all.pop(0)
                     accuracies_no_na.pop(0)
 
+                torch.cuda.empty_cache()
+
         if scheduler is not None:
             scheduler.step()
-        acc, acc_na, loss = test(model, criterion, test_loader)
+        acc, acc_na, loss = test(model, criterion, test_loader, config)
         writer.add_scalar('Test Accuracy All', acc, epoch)
         writer.add_scalar('Test Accuracy No NA', acc_na, epoch)
         writer.add_scalar('Test Loss', loss, epoch)
         if acc > last_acc or acc_na > last_acc_na:
-            last_model = save_model(model, logdir, config.name + f'_best({acc * 100:.2f}%)')
+            logger.info("Saving...")
+            last_model = save_model(model, logdir, config.name + f'_best({acc * 100:.2f}%)_feature({config.target_feature})')
+            logger.info(f"{last_model} Saved")
             last_acc = acc
             last_acc_na = acc_na
         else:

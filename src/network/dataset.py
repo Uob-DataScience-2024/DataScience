@@ -106,6 +106,8 @@ class SequenceDataset(Dataset):
                 if i not in temp and not pd.isna(i):
                     temp.append(i)
         temp.sort()
+        if pd.api.types.is_numeric_dtype(type(temp[0])):
+            temp = list(map(str, range(0, temp[-1])))
         return temp
 
     def label_size(self):

@@ -112,7 +112,7 @@ class NFLDataItem:
 
     }
 
-    block_columns = ['gameId', 'playDescription', 'union_id', 'preSnapHomeScore', 'preSnapVisitorScore']
+    block_columns = ['gameId', 'playDescription', 'union_id']
 
     def __init__(self, week: str, gameId: int, playId: int, nflId: int, frameId: int, dt: datetime, number_payload: dict, binary_payload: dict, text_payload: dict):
         self.week = week
@@ -286,6 +286,8 @@ class GameNFLData:
         elif len(list(filter(lambda x: x not in df.columns, columns))):
             raise ValueError(f"Columns not found in dataframe: {list(filter(lambda x: x not in df.columns, columns))}")
         columns = list(filter(lambda x: x not in NFLDataItem.block_columns, columns))
+        if pd.api.types.is_numeric_dtype(df[columns[-1]].dtype):
+            df[columns[-1]] = df[columns[-1]].astype(str)
         types = {column: df[column].dtype for column in columns}
         statistics = self.statistics()
         resize_range = NFLDataItem.resize_range.copy()
