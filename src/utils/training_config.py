@@ -136,6 +136,9 @@ class TrainingHyperparameters(dict):
     criterion = criterions['MSELoss']
 
     def __init__(self, **kwargs):
+        kwargs['batch_size'] = kwargs.get('batch_size', 2)
+        kwargs['num_epochs'] = kwargs.get('num_epochs', 100)
+        kwargs['split_ratio'] = kwargs.get('split_ratio', 0.8)
         super(TrainingHyperparameters, self).__init__(**kwargs)
         self.update(kwargs)
         for key, value in self.items():
@@ -195,8 +198,16 @@ class TrainingConfigure(dict):
     def to_json(self):
         return json.dumps(self, default=lambda o: o.__dict__, sort_keys=True, indent=4)
 
+    def to_file(self, path):
+        with open(path, 'w') as f:
+            json.dump(self, f, default=lambda o: o.__dict__, sort_keys=True, indent=4)
+
     @staticmethod
     def from_file(path):
-        with open(path, 'r') as f:
-            return TrainingConfigure(**json.load(f))
-
+        try:
+            with open(path, 'r') as f:
+                return TrainingConfigure(**json.load(f))
+        except:
+            data = TrainingConfigure()
+            data.to_file(path)
+            return data

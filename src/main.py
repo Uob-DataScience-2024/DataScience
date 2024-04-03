@@ -12,7 +12,7 @@ from network import SequenceDataset
 from network import Seq2SeqGRU, Seq2SeqLSTM, SameSizeCNN
 from tqdm.rich import tqdm
 import torch.utils.tensorboard
-
+from rich.progress import Progress
 from utils import TrainingConfigure
 
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
@@ -59,7 +59,7 @@ def execute_cell(model: torch.nn.Module, x, y, criterion, optimizer=None, encode
         pred_y = model(x)
     loss = criterion(pred_y, y)
     if optimizer is not None:
-        loss.backward()
+        loss.backward(retain_graph=hidden)
         optimizer.step()
         optimizer.zero_grad()
 
@@ -70,13 +70,14 @@ def execute_cell(model: torch.nn.Module, x, y, criterion, optimizer=None, encode
     return (loss, accuracy_all, accuracy_no_na) if encoder_hidden is None and decoder_hidden is None else (loss, accuracy_all, accuracy_no_na, (encoder_hidden, decoder_hidden))
 
 
-def execute_cell_split(model: torch.nn.Module, x, y, split_plan, criterion, optimizer=None, batch_first=True):
+def execute_cell_split(progress: Progress, model: torch.nn.Module, x, y, split_plan, criterion, optimizer=None, batch_first=True):
     encoder_hidden = None
     decoder_hidden = None
     loss = None
     acc_all = 0
     acc_no_na = 0
-    for sub_seq_start, sub_seq_end in split_plan:
+    sub_task = progress.add_task('Sub Sequence', total=len(split_plan))
+    for i, (sub_seq_start, sub_seq_end) in enumerate(split_plan):
         if batch_first:
             sub_x = x[:, sub_seq_start:sub_seq_end, :]
             sub_y = y[:, sub_seq_start:sub_seq_end, :]
@@ -85,12 +86,18 @@ def execute_cell_split(model: torch.nn.Module, x, y, split_plan, criterion, opti
             sub_y = y[sub_seq_start:sub_seq_end, :, :]
 
         sub_loss, sub_acc_all, sub_acc_no_na, (encoder_hidden, decoder_hidden) = execute_cell(model, sub_x, sub_y, criterion, optimizer, encoder_hidden, decoder_hidden, hidden=True)
+        encoder_hidden = encoder_hidden.detach() if encoder_hidden is torch.Tensor else (encoder_hidden[0].detach(), encoder_hidden[1].detach())
+        decoder_hidden = decoder_hidden.detach() if decoder_hidden is torch.Tensor else (decoder_hidden[0].detach(), decoder_hidden[1].detach())
         if loss is None:
             loss = sub_loss
         else:
             loss += sub_loss
         acc_all += sub_acc_all
         acc_no_na += sub_acc_no_na
+        n = i + 1
+        progress.update(sub_task, description=f'Sub Sequence [{i}/{len(split_plan)}], Loss: {loss.item() / n}, Accuracy All: {(acc_all / n) * 100:.2f}% Accuracy No NA: {(acc_no_na / n) * 100:.2f}%')
+
+    progress.remove_task(sub_task)
 
     loss /= len(split_plan)
     acc_all /= len(split_plan)
@@ -104,11 +111,14 @@ def test(model, criterion, test_loader):
     accuracies_no_na = []
     losses = []
     with torch.no_grad():
-        for i, (data, target) in enumerate(tqdm(test_loader)):
-            loss, accuracy_all, accuracy_no_na = execute_cell(model, data, target, criterion)
-            losses.append(loss.item())
-            accuracies_all.append(accuracy_all)
-            accuracies_no_na.append(accuracy_no_na)
+        with Progress() as progress:
+            task_test = progress.add_task('Testing', total=len(test_loader))
+            for i, (data, target, split) in enumerate(test_loader):
+                loss, accuracy_all, accuracy_no_na = execute_cell_split(progress, model, data, target, split, criterion)
+                losses.append(loss.item())
+                accuracies_all.append(accuracy_all)
+                accuracies_no_na.append(accuracy_no_na)
+                progress.update(task_test, description=f'Step [{i}/{len(test_loader)}], Loss: {loss.item()}, Accuracy All: {accuracies_all * 100:.2f}% Accuracy No NA: {accuracies_no_na * 100:.2f}%')
 
     logger.info(f'Test Accuracy All: {np.mean(accuracies_all) * 100:.2f}%, Test Accuracy No NA: {np.mean(accuracies_no_na) * 100:.2f}%, Test Loss: {np.mean(losses)}')
 
@@ -195,9 +205,10 @@ def load_model(model, model_path):
 def run_task(config: TrainingConfigure, logdir, model_path=None):
     dataset = SequenceDataset('../data', input_features=config.input_features, target_feature=config.target_feature, split=config.split)
     split_ratio = config.training_hyperparameters.split_ratio
+    batch_size = config.training_hyperparameters.batch_size
     train_set, test_set = torch.utils.data.random_split(dataset, [int(len(dataset) * split_ratio), len(dataset) - int(len(dataset) * split_ratio)])
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=2, shuffle=True, collate_fn=collate_fn)
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=2, shuffle=False, collate_fn=collate_fn)
+    train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn_split)
+    test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn_split)
 
     model = init_model(config, dataset)
     if model_path is not None:
@@ -228,28 +239,30 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
         accuracies_all = []
         accuracies_no_na = []
         window = 10
-        for i, (data, target) in enumerate(progress := tqdm(train_loader)):
-            model.train()
-            optimizer.zero_grad()
-            loss, accuracy_all, accuracy_no_na = execute_cell(model, data, target, criterion, optimizer)
-            losses.append(loss.item())
-            accuracies_all.append(accuracy_all)
-            accuracies_no_na.append(accuracy_no_na)
-            info = f'Epoch [{epoch}/{epochs}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy All: {np.mean(accuracies_all) * 100:.2f}% Accuracy No NA: {np.mean(accuracies_no_na) * 100:.2f}%'
-            progress.set_description_str(info)
-            # 需要添加的指标: loss, accuracy, no na acc, learning rate, 对于每个epoch和global step
-            writer.add_scalar('Loss', loss.item(), epoch * len(train_loader) + i)
-            writer.add_scalar('Accuracy All', accuracy_all, epoch * len(train_loader) + i)
-            writer.add_scalar('Accuracy No NA', accuracy_no_na, epoch * len(train_loader) + i)
-            if scheduler is not None:
-                writer.add_scalar('Learning Rate', scheduler.get_last_lr()[0], epoch * len(train_loader) + i)
+        with Progress() as progress:
+            task_train = progress.add_task('Training', total=len(train_loader))
+            for i, (data, target, split) in enumerate(train_loader):
+                model.train()
+                optimizer.zero_grad()
+                loss, accuracy_all, accuracy_no_na = execute_cell_split(progress, model, data, target, split, criterion, optimizer)
+                losses.append(loss.item())
+                accuracies_all.append(accuracy_all)
+                accuracies_no_na.append(accuracy_no_na)
+                info = f'Epoch [{epoch}/{epochs}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy All: {np.mean(accuracies_all) * 100:.2f}% Accuracy No NA: {np.mean(accuracies_no_na) * 100:.2f}%'
+                progress.update(task_train, description=info)
+                # 需要添加的指标: loss, accuracy, no na acc, learning rate, 对于每个epoch和global step
+                writer.add_scalar('Loss', loss.item(), epoch * len(train_loader) + i)
+                writer.add_scalar('Accuracy All', accuracy_all, epoch * len(train_loader) + i)
+                writer.add_scalar('Accuracy No NA', accuracy_no_na, epoch * len(train_loader) + i)
+                if scheduler is not None:
+                    writer.add_scalar('Learning Rate', scheduler.get_last_lr()[0], epoch * len(train_loader) + i)
 
-            if i % 5 == 0:
-                logger.info(info)
-            if len(losses) > window:
-                losses.pop(0)
-                accuracies_all.pop(0)
-                accuracies_no_na.pop(0)
+                if i % 5 == 0:
+                    logger.info(info)
+                if len(losses) > window:
+                    losses.pop(0)
+                    accuracies_all.pop(0)
+                    accuracies_no_na.pop(0)
 
         if scheduler is not None:
             scheduler.step()
