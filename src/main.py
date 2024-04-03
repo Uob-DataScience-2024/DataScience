@@ -52,7 +52,7 @@ def collate_fn_split(batch):
     return x, y, split_plan
 
 
-def execute_cell(model: torch.nn.Module, x, y, criterion, optimizer=None, encoder_hidden=None, decoder_hidden=None, hidden=False, ignore_na=True):
+def execute_cell(model: torch.nn.Module, x, y, criterion, optimizer=None, encoder_hidden=None, decoder_hidden=None, hidden=False, ignore_na=False):
     if hidden:
         pred_y, (encoder_hidden, decoder_hidden) = model(x, encoder_hidden, decoder_hidden, first=True)
     else:
@@ -64,7 +64,7 @@ def execute_cell(model: torch.nn.Module, x, y, criterion, optimizer=None, encode
     else:
         loss = criterion(pred_y, y)
     if optimizer is not None:
-        loss.backward(retain_graph=hidden)
+        loss.backward()
         optimizer.step()
         optimizer.zero_grad()
 
@@ -241,9 +241,9 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
     logger.info(f"Scheduler: {config.training_hyperparameters.scheduler}, Scheduler Hyperparameters: {config.training_hyperparameters.scheduler_hyperparameters}")
 
     # log
-    if not os.path.exists(logdir):
-        os.makedirs(logdir)
-    writer = torch.utils.tensorboard.SummaryWriter(logdir)
+    if not os.path.exists(os.path.join(logdir, config.name)):
+        os.makedirs(os.path.join(logdir, config.name))
+    writer = torch.utils.tensorboard.SummaryWriter(os.path.join(logdir, config.name), filename_suffix=config.name)
     last_acc = 0
     last_acc_na = 0
     last_model = None
@@ -292,7 +292,9 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
         writer.add_scalar('Test Loss', loss, epoch)
         if acc > last_acc or acc_na > last_acc_na:
             logger.info("Saving...")
-            last_model = save_model(model, logdir, config.name + f'_best({acc * 100:.2f}%)_feature({config.target_feature})')
+            if not os.path.exists(os.path.join(logdir, config.name)):
+                os.makedirs(os.path.join(logdir, config.name))
+            last_model = save_model(model, os.path.join(logdir, config.name), config.name + f'_best({acc * 100:.2f}%)_feature({config.target_feature})')
             logger.info(f"{last_model} Saved")
             last_acc = acc
             last_acc_na = acc_na
