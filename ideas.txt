@@ -29,4 +29,5 @@ Based on these features below, which are all things that define the situation of
 More things to look at:
 
 * When a team is on defence, ie when they have a personnelD, what is the personnelD, defendersInTheBox, pff_passCoverage and pff_passCoverageType that they choose to use for each personnelO. This is the defensive team predicting what the offense will do based on the offenses tendencies and their personnelO on the field.
+^ These are all just looking at current data, but you could predict what personnelD, defendersInTheBox, pff_passCoverage and pff_passCoverageType would be best based on the personnelO
  
