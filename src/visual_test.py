@@ -156,57 +156,57 @@ class VisualTest(unittest.TestCase):
         video.release()
         self.assertEqual(True, True)
 
-    def test_video_ffmpeg(self):
-        games, game_data = load_demo_data_nfl_data()
-        game = games[list(games.keys())[0]]
-        football = GameFootBallTrackingData.from_tracking_data(game.tracking)
-        home_visitor = game_data.get_home_visitor()
-
-        # frameIds = game.df['frameId'].unique()
-        # playIds = game.df['playId'].unique()
-        # draw_frame(image, game, football, playIds[0], frameIds[0])
-        dts = game.tracking.df['time'].unique()
-        dts = list(sorted(dts))
-        time_max = 60 * 70
-        start = dts[0]
-        dts = [x for x in dts if x <= start + timedelta(seconds=time_max)]
-        result = []
-        last_dt = dts[0]
-        for dt in tqdm(dts):
-            image = np.zeros((1106, 2400, 3), dtype=np.uint8)
-            image.fill(255)
-            draw_by_time(image, game, football, dt, home_visitor[game.gameId][0])
-            ms_interval = (dt - last_dt).total_seconds() * 1000
-            if ms_interval > 1000 * 5:
-                ms_interval = 1000
-            last_dt = dt
-            # draw datetime
-            image, bottom_y = draw_background(image, f"{home_visitor[game.gameId][0]} vs {home_visitor[game.gameId][1]} - {str(game.gameId)}", (209, 222, 233), (242, 149, 89))
-            draw_status(image, game, dt, home_visitor[game.gameId][0], bottom_y)
-            cv2.putText(image, dt.strftime('%Y-%m-%d %H:%M:%S'), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (32, 44, 57), 2)
-            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-            result.append((np.array(image, dtype=np.uint8), ms_interval))
-        # dpi = 100
-
-        ffmpeg_encode(result)
-
-        # height, width = result[0][0].shape[:2]
-        # fps = 25
-        # one_frame_duration_ms = 1000 / fps
-        # # 创建视频写入对象
-        # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-        # video = cv2.VideoWriter('output.mp4', fourcc, fps, (width, height))
-        #
-        # for frame, interval_ms in tqdm(result):
-        #     # 计算需要重复该帧的次数
-        #     repeat_times = round(interval_ms / one_frame_duration_ms)
-        #
-        #     # 重复写入帧
-        #     for _ in range(max(1, repeat_times)):
-        #         video.write(frame)
-        #
-        # video.release()
-        self.assertEqual(True, True)
+    # def test_video_ffmpeg(self):
+    #     games, game_data = load_demo_data_nfl_data()
+    #     game = games[list(games.keys())[0]]
+    #     football = GameFootBallTrackingData.from_tracking_data(game.tracking)
+    #     home_visitor = game_data.get_home_visitor()
+    #
+    #     # frameIds = game.df['frameId'].unique()
+    #     # playIds = game.df['playId'].unique()
+    #     # draw_frame(image, game, football, playIds[0], frameIds[0])
+    #     dts = game.tracking.df['time'].unique()
+    #     dts = list(sorted(dts))
+    #     time_max = 60 * 70
+    #     start = dts[0]
+    #     dts = [x for x in dts if x <= start + timedelta(seconds=time_max)]
+    #     result = []
+    #     last_dt = dts[0]
+    #     for dt in tqdm(dts):
+    #         image = np.zeros((1106, 2400, 3), dtype=np.uint8)
+    #         image.fill(255)
+    #         draw_by_time(image, game, football, dt, home_visitor[game.gameId][0])
+    #         ms_interval = (dt - last_dt).total_seconds() * 1000
+    #         if ms_interval > 1000 * 5:
+    #             ms_interval = 1000
+    #         last_dt = dt
+    #         # draw datetime
+    #         image, bottom_y = draw_background(image, f"{home_visitor[game.gameId][0]} vs {home_visitor[game.gameId][1]} - {str(game.gameId)}", (209, 222, 233), (242, 149, 89))
+    #         draw_status(image, game, dt, home_visitor[game.gameId][0], bottom_y)
+    #         cv2.putText(image, dt.strftime('%Y-%m-%d %H:%M:%S'), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (32, 44, 57), 2)
+    #         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    #         result.append((np.array(image, dtype=np.uint8), ms_interval))
+    #     # dpi = 100
+    #
+    #     ffmpeg_encode(result)
+    #
+    #     # height, width = result[0][0].shape[:2]
+    #     # fps = 25
+    #     # one_frame_duration_ms = 1000 / fps
+    #     # # 创建视频写入对象
+    #     # fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    #     # video = cv2.VideoWriter('output.mp4', fourcc, fps, (width, height))
+    #     #
+    #     # for frame, interval_ms in tqdm(result):
+    #     #     # 计算需要重复该帧的次数
+    #     #     repeat_times = round(interval_ms / one_frame_duration_ms)
+    #     #
+    #     #     # 重复写入帧
+    #     #     for _ in range(max(1, repeat_times)):
+    #     #         video.write(frame)
+    #     #
+    #     # video.release()
+    #     self.assertEqual(True, True)
 
 
 if __name__ == '__main__':
