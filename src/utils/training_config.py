@@ -134,6 +134,7 @@ class TrainingHyperparameters(dict):
     num_epochs = 100
     split_ratio = 0.8
     sub_sequence = False
+    split_step = 512
     criterion = criterions['MSELoss']
 
     def __init__(self, **kwargs):
@@ -141,6 +142,7 @@ class TrainingHyperparameters(dict):
         kwargs['num_epochs'] = kwargs.get('num_epochs', 100)
         kwargs['split_ratio'] = kwargs.get('split_ratio', 0.8)
         kwargs['sub_sequence'] = kwargs.get('sub_sequence', False)
+        kwargs['split_step'] = kwargs.get('split_step', 512)
         super(TrainingHyperparameters, self).__init__(**kwargs)
         self.update(kwargs)
         for key, value in self.items():

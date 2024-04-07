@@ -13,22 +13,24 @@
         "a",
         "dis",
         "o",
-        "dir"
+        "dir",
+        "pff_role"
     ],
     "model": "GRU",
     "model_hyperparameters": {
         "dropout": 0.15,
         "hidden_dim": 256,
-        "input_dim": 14,
+        "input_dim": 15,
         "num_layers": 3
     },
     "name": "default",
     "split": false,
-    "target_feature": "pff_role",
+    "target_feature": "pff_passCoverageType",
     "training_hyperparameters": {
-        "batch_size": 6,
+        "batch_size": 8,
+        "split_step": 512,
         "criterion": "MSELoss",
-        "num_epochs": 100,
+        "num_epochs": 5,
         "optimizer": "Adam",
         "optimizer_hyperparameters": {
             "lr": 0.001

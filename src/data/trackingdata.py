@@ -23,6 +23,8 @@ class TrackingDataItem:
     """Player orientation (0-360) (degrees)"""
     dir: float
     """Angle of player motion (0-360) (degrees)"""
+    team: Optional[str]
+    """Team code"""
 
     event: str
     """Event that occurred(not each line has an event)"""

@@ -5,4 +5,3 @@
 /data/cache/*.json
 /test_data/cache
 /src/logdir/*
-/src/configs/

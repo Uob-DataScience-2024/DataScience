@@ -29,7 +29,9 @@ class NFLDataItem:
     """Player orientation (0-360) (degrees)"""
     dir: float
     """Angle of player motion (0-360) (degrees)"""
+    team: str
 
+    jerseyNumber: int
     event: str
     """Event that occurred(not each line has an event)"""
     # PffData Part
