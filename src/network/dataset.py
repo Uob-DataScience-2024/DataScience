@@ -107,7 +107,10 @@ class SequenceDataset(Dataset):
                     temp.append(i)
         temp.sort()
         if pd.api.types.is_numeric_dtype(type(temp[0])):
-            temp = list(map(str, range(0, temp[-1])))
+            if type(temp[0]) == int:
+                temp = list(map(str, range(temp[0], temp[-1] + 1)))
+            else:
+                temp = list(map(str, temp))
         return temp
 
     def label_size(self):

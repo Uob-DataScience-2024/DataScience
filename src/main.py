@@ -1,4 +1,5 @@
 import datetime
+import gc
 import os
 
 import numpy as np
@@ -100,7 +101,8 @@ def execute_cell_split(progress: Progress, model: torch.nn.Module, x, y, split_p
         acc_all += sub_acc_all
         acc_no_na += sub_acc_no_na
         n = i + 1
-        progress.update(sub_task, description=f'Sub Sequence [{i}/{len(split_plan)}], Loss: {loss.item() / n}, Accuracy All: {(acc_all / n) * 100:.2f}% Accuracy No NA: {(acc_no_na / n) * 100:.2f}%', advance=1)
+        progress.update(sub_task, description=f'Sub Sequence [{i}/{len(split_plan)}], Loss: {loss.item() / n}, Accuracy All: {(acc_all / n) * 100:.2f}% Accuracy No NA: {(acc_no_na / n) * 100:.2f}%',
+                        advance=1)
 
     progress.remove_task(sub_task)
 
@@ -128,7 +130,9 @@ def test(model, criterion, test_loader, config: TrainingConfigure):
                 losses.append(loss.item())
                 accuracies_all.append(accuracy_all)
                 accuracies_no_na.append(accuracy_no_na)
-                progress.update(task_test, description=f'Step [{i}/{len(test_loader)}], Loss: {loss.item()}, Accuracy All: {np.mean(accuracies_all) * 100:.2f}% Accuracy No NA: {np.mean(accuracies_no_na) * 100:.2f}%', advance=1)
+                progress.update(task_test,
+                                description=f'Step [{i}/{len(test_loader)}], Loss: {loss.item()}, Accuracy All: {np.mean(accuracies_all) * 100:.2f}% Accuracy No NA: {np.mean(accuracies_no_na) * 100:.2f}%',
+                                advance=1)
 
     logger.info(f'Test Accuracy All: {np.mean(accuracies_all) * 100:.2f}%, Test Accuracy No NA: {np.mean(accuracies_no_na) * 100:.2f}%, Test Loss: {np.mean(losses)}')
 
@@ -213,6 +217,8 @@ def load_model(model, model_path):
 
 
 def run_task(config: TrainingConfigure, logdir, model_path=None):
+    global SPILT_STEP
+    SPILT_STEP = config.training_hyperparameters.split_step
     dataset = SequenceDataset('../data', input_features=config.input_features, target_feature=config.target_feature, split=config.split)
     split_ratio = config.training_hyperparameters.split_ratio
     batch_size = config.training_hyperparameters.batch_size
@@ -234,7 +240,8 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
     logger.info(f"Input Feature: {config.input_features}, Target Feature: {config.target_feature}")
     logger.info(f"Epochs: {epochs}, Dataset Size: {len(dataset)}, Train Size: {len(train_set)}, Test Size: {len(test_set)}")
     logger.info(f"Input Shape: (batch_size, seq_len, {dataset[0][0].shape[1]}), Output Shape: (batch_size, seq_len, {dataset[0][1].shape[1]})")
-    logger.info(f"Batch size: {config.training_hyperparameters.batch_size}, Enable Sub Sequence Train: {config.training_hyperparameters.sub_sequence}")
+    logger.info(
+        f"Batch size: {config.training_hyperparameters.batch_size}, Enable Sub Sequence Train: {config.training_hyperparameters.sub_sequence}, Split Step: {config.training_hyperparameters.split_step}")
     logger.info(
         f"Model: {config.model}, Input Size: {config.model_hyperparameters.input_dim}, Hidden Size: {config.model_hyperparameters.hidden_dim}, Num Layers: {config.model_hyperparameters.num_layers}, Dropout: {config.model_hyperparameters.dropout}")
     logger.info(f"Optimizer: {config.training_hyperparameters.optimizer}, Learning Rate: {config.training_hyperparameters.learning_rate}")
@@ -302,7 +309,27 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
             load_model(model, last_model)
 
     writer.close()
+    del model
+    del optimizer
+    del criterion
+    del scheduler
+    del train_loader
+    del test_loader
+    del train_set
+    del test_set
+    del dataset
+    torch.cuda.empty_cache()
+
+
+def plan_execute(config_dir='configs', logdir='logdir'):
+    configs = [x for x in os.listdir(config_dir) if x.endswith('.json')]
+    for i, config in enumerate(configs[3:]):
+        logger.info(f"Start running {config} ({i}/{len(configs)})")
+        run_task(TrainingConfigure.from_file(os.path.join(config_dir, config)), logdir)
+        gc.collect()
 
 
 if __name__ == '__main__':
-    run_task(TrainingConfigure.from_file('example.json'), 'logdir')
+    print()
+    # run_task(TrainingConfigure.from_file('example.json'), 'logdir')
+    plan_execute()
