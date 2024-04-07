@@ -1,4 +1,4 @@
-Maybe look at these features (all in play data):
+Which teams use each of the features below, and how often? i.e. what %age of the time:
 
 
 ¥ offenseFormation: Formation used by possession team (text)
@@ -8,22 +8,9 @@ Maybe look at these features (all in play data):
 ¥ dropbackType: Dropback categorization of quarterback (text)
 ¥ pff_playAction: indicator for whether offense executes play action fake on the play. Variable provided by PFF (binary)
 ¥ pff_passCoverage: Coverage scheme of defense. Variable provided by PFF (text)
-- Possible values:
-- Cover-0: A Man to Man coverage across the board with no deep defenders. This coverage is typically accompanied with a blitz
-- Cover-1: When a defense plays any form of Man defense across the board with a Defensive Player as a Single High Man concept
-- Cover-2: A two deep safety concept where any zone principle is applied
-- 2-Man: A two deep safety concept where a man principle is applied
-- Cover-3: Any 3 Deep, 4 Under concept
-- Quarters: A Quarters concept on both halves of the field. In general it will be a 4 Deep, 3 Under concept where the corners are on #1, safeties on #2, and backside safety rotation dependent on formation
-- Cover-6: A Quarters Concept on half the field and a 2 Deep concept on the other half
-- Bracket: Recorded in the field and up to the 12 yard line in the red zone Ð when two offensive players have an in and out bracket by two defenders
-- Goal Line: Calls where a Goal Line defense is used.
-- Red Zone: Calls that are typically specific to the Red Zone and do not occur in the field often
-- Prevent: Special end of half or end of game situations where a Prevent defense is utilized
-- Miscellaneous: Coverage concepts that we feel do not comfortably fit into any of our coverage categories
 ¥ pff_passCoverageType: Whether defense's coverage type was man, zone or other. Variable provided by PFF (text)
 
-Based on these featues
+Based on these features below, which are all things that define the situation of the game at the beginning of each play:
 
 
 ¥ gameId: Game identifier, unique (numeric)   - only to see if teams use certain things against different teams
@@ -38,5 +25,8 @@ Based on these featues
 ¥ preSnapHomeScore: Home score prior to the play (numeric)
 ¥ preSnapVisitorScore: Visiting team score prior to the play (numeric)
 
-All of these factors impact game state, and so may find that in certain situations (eg late in games where theyÕre behind) they act in certain ways (formation, personnel etc)
+
+More things to look at:
+
+* When a team is on defence, ie when they have a personnelD, what is the personnelD, defendersInTheBox, pff_passCoverage and pff_passCoverageType that they choose to use for each personnelO. This is the defensive team predicting what the offense will do based on the offenses tendencies and their personnelO on the field.
  
