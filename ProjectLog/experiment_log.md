@@ -21,6 +21,55 @@
 - Experiment Analysis: The experiment implemented a sequence-to-sequence neural network using an encoder-decoder structure formed by two LSTMs. Preliminary global accuracy reached 75% (in a sequence-to-sequence classification task), indicating that the neural network requires further optimization.
 
 
+## Experiment: Attempt to Segment Data Sequences
+
+- Experiment Summary: Implement segmentation on excessively long sequences within the dataset
+- Experiment Results: Successfully accelerated training
+- Experiment Conclusions:
+  - After an initial exploration of the dataset, it was found that the list of unique playIDs for a single game in plays.csv and the tracking data are the same, meaning the data can be correlated.![img_1.png](images/img_1.png)
+  - Furthermore, this means that a single game can be divided into four sequences using the quarter identifier.
+  - The segmentation was successfully implemented, and training was attempted.
+  - Using the segmented sequences, both the training speed per batch and the apparent rate of accuracy increase were much faster. ![img.png](images/img.png)
+
+## Experiment: Implement Transformer
+
+- Experiment Summary: Implement the Transformer model on top of the existing foundation to test performance
+- Experiment Results: Not as good as LSTM/GRU
+- Experiment Conclusions:
+  - After implementing the Transformer model, it was found that during the training process, the model converged slower, and the accuracy increased slower.
+  - Due to the characteristics of the Transformer model, it may not be suitable for the current dataset, hence not performing as well as LSTM/GRU models. ![images/img_2.png](images/img_2.png)
+
+## Experiment: Implement Win-Rate Model
+
+- Experiment Summary: Implement the training of a win/lose model for a game
+- Experiment Results: NOT GOOD
+- Experiment Conclusions:
+  - The experiment was based on the `preSnapHomeScore` and `preSnapVisitorScore` columns in playdata to determine if the home team won a game, but obviously training this as a sequence classification model was unsuccessful.
+  - The experiment also tested another approach to eliminate the possibility of a sequence classification model design problem, which was to have the sequence labeling model label the home team's score, but this too was unsuccessful. Other PFF data information was also considered.
+  - It can be concluded that there is no visible effective correlation between `preSnapHomeScore` and `preSnapVisitorScore` and the main data, and no features that neural networks could learn from.
+
+## Experiment: Large-Scale Controlled Variable Comparative Experiment
+
+- Experiment Summary: Conduct a large-scale controlled variable comparative experiment, experimenting with multiple target features based on GRU sequence lists and models
+- Experiment Results: Effective target features: `pff_role` (76% accuracy at 5 epochs), `pff_playAction` (63% accuracy at 5 epochs with no change, needs improvement)
+- Experiment Conclusions:
+  - Features used in the experiment include: 
+    -  passResult.json
+    -  personnelD.json
+    -  personnelO.json
+    -  pff_passCoverage.json
+    -  pff_passCoverageType.json
+    -  pff_playAction.json
+    -  pff_positionLinedUp.json
+    -  pff_role.json
+    -  playResult.json
+    -  prePenaltyPlayResult.json
+  - A large-scale controlled variable comparative experiment was conducted, experimenting with multiple target features based on GRU sequence lists and models.
+  - The results show that the predictive accuracy of the `pff_role` feature can reach 76% (at 5 epochs) with the expectation to exceed 94% with subsequent training, while the predictive accuracy of the `pff_playAction` feature is only 63% (at 5 epochs) with no change, indicating a need for further improvement.
+  - Most features failed to learn anything useful from data based on tracking data.
+  - **If any of us have any promising sequence labeling target features that could yield effective results, please give me some suggestions, and I will experimentally validate them.**
+
+
 ---
 
 # 中文

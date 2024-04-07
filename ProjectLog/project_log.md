@@ -1,3 +1,53 @@
+# [English](#English)-[Chinese](#中文) Bilingual Log
+
+# English
+---
+
+## 2024/03/21
+
+### Implementation Content: Structured Dataset Object Implementation
+
+#### Details:
+- The three main `names` `PffData, PlayData, TrackingData` correspond to three types of dataset files respectively: `pffScoutingData.csv, plays.csv, week{number}.csv`.
+- Correspondingly, the `Game{name}` class as the dataset for each game and the `{name}Item` class as the object for each piece of data have been implemented. The `Game{name}` class is an iterable object, supporting the `__getitem__` method.
+- Moreover, based on these three datasets, by the uniqueness of `gameId` + `playId`, the three tables have been linked together, forming a new dataset object named `NFLData`.
+
+---
+
+## 2024/03/21
+
+### Implementation Content: Enabling Datasets to Support Direct `to_tensor` Method
+
+#### Details:
+- To better use structured datasets in neural network dataset objects, a `to_tensor` method that can complete preprocessing directly from the dataset has been implemented.
+- The `to_tensor` method allows for the specification of fixed labels through parameters. If no corresponding label data is provided, it can automatically generate a label array and will include the mapping of labels in the returned data. For numerical data, it will automatically map them to a range of 0-1, with the pre-mapping maximum and minimum values also included in the returned data_map.
+- Additionally, the `to_tensor` method also automatically performs a series of preprocessing operations, including handling NA values.
+
+---
+
+## 2024/03/21
+
+### Implementation Content: Implementation of Neural Network Model Construction
+
+#### Details:
+- Implemented a general LSTM GRU sequence labeling network.
+- Implemented training config.
+- Supports any input and output label, for instance, one can modify `input_feature` and `output_feature` in the configuration to select any data from NFLData as input and output, achieving very flexible experimental functionality. This makes it much easier to conduct controlled variable experiments in batches.
+- Constructed a general experimental configuration example.
+- Constructed the implementation of the training process.
+
+---
+
+## 2024/03/28
+
+### Implementation Content: Preliminary Implementation of Data Visualization
+
+#### Details:
+- Implemented the basic function of data visualization, capable of playing tracking data.
+- Implemented the function to generate video from visualized data.
+
+---
+
 # 项目日志
 
 ---
