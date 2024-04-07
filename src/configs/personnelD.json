@@ -1,0 +1,46 @@
+{
+  "input_features": [
+    "playId",
+    "nflId",
+    "frameId",
+    "time",
+    "jerseyNumber",
+    "team",
+    "playDirection",
+    "x",
+    "y",
+    "s",
+    "a",
+    "dis",
+    "o",
+    "dir",
+    "pff_role"
+  ],
+  "model": "GRU",
+  "model_hyperparameters": {
+    "dropout": 0.15,
+    "hidden_dim": 256,
+    "input_dim": 15,
+    "num_layers": 3
+  },
+  "name": "personnelD",
+  "split": false,
+  "target_feature": "personnelD",
+  "training_hyperparameters": {
+    "batch_size": 8,
+    "split_step": 512,
+    "criterion": "MSELoss",
+    "num_epochs": 5,
+    "optimizer": "Adam",
+    "optimizer_hyperparameters": {
+      "lr": 0.001
+    },
+    "scheduler": "None",
+    "scheduler_hyperparameters": {
+      "gamma": 0.8,
+      "step_size": 3
+    },
+    "split_ratio": 0.8,
+    "sub_sequence": true
+  }
+}

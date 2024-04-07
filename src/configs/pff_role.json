@@ -22,13 +22,14 @@
         "input_dim": 14,
         "num_layers": 3
     },
-    "name": "default",
+    "name": "pff_role",
     "split": false,
     "target_feature": "pff_role",
     "training_hyperparameters": {
-        "batch_size": 6,
+        "batch_size": 8,
+        "split_step": 512,
         "criterion": "MSELoss",
-        "num_epochs": 100,
+        "num_epochs": 5,
         "optimizer": "Adam",
         "optimizer_hyperparameters": {
             "lr": 0.001

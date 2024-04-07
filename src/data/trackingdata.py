@@ -26,6 +26,7 @@ class TrackingDataItem:
 
     event: str
     """Event that occurred(not each line has an event)"""
+    jerseyNumber: int
 
     no_payload_columns = {
         'game_id': 'gameId',

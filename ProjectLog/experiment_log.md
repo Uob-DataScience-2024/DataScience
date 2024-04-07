@@ -48,10 +48,10 @@
 - 实验概要: 对数据集每个比赛过长的序列实施分割
 - 实验结果: 成功加速训练
 - 实验结论:
-  - 在实施初步对数据集的探索后发现，plays.csv和tracking data中单场比赛的playId unique列表相同，也就意味着可以将数据关联![img_1.png](images%2Fimg_1.png)
+  - 在实施初步对数据集的探索后发现，plays.csv和tracking data中单场比赛的playId unique列表相同，也就意味着可以将数据关联![img_1.png](images/img_1.png)
   - 进一步来讲，这集可以利用quarter标识符将单个比赛分割为四个序列
   - 分割实现成功，尝试训练
-  - 使用分割后的序列，使得单batch训练速度都加快许多，并且貌似准确率上升也更快 ![img.png](images%2Fimg.png)
+  - 使用分割后的序列，使得单batch训练速度都加快许多，并且貌似准确率上升也更快 ![img.png](images/img.png)
 
 ## 实验: 实施Transformer
 
@@ -59,7 +59,7 @@
 - 实验结果: 不如LSTM/GRU
 - 实验结论:
   - 实施Transformer模型后，发现在训练过程中，模型收敛速度较慢，且准确率提升较慢
-  - 由于Transformer模型的特性，可能不适合当前的数据集，因此，不如LSTM/GRU模型![img_2.png](images%2Fimg_2.png)
+  - 由于Transformer模型的特性，可能不适合当前的数据集，因此，不如LSTM/GRU模型![images/img_2.png](images/img_2.png)
 
 ## 试验: 实施胜率模型
 
@@ -69,3 +69,24 @@
   - 试验是根据 playdata中的 `preSnapHomeScore` 列和 `preSnapVisitorScore` 列判断一场比赛对主场是否胜利的，但是很明显以此训练的是序列分类模型，是失败的
   - 试验还为了排除序列分类模型设计问题，测试了另一种方式，也就是让序列标记模型对表记主场队伍得分，结果依然是失败，同时也考虑了其他pff数据的信息
   - 可以得出结论，`preSnapHomeScore` 和 `preSnapVisitorScore` 与主要数据之间，并不存在可见的有效关联，并不存在可以让神经网络所学习的特征
+
+## 实验: 大规模控制变量对比实验
+
+- 实验概要: 实施大规模控制变量对比实验, 基于GRU序列表及模型对于多个目标特征进行实验
+- 实验结果: 有效目标特征: `pff_role`(76% 5 epoch), `pff_playAction`(63% 5epoch 无变化，需要改进)
+- 实验结论:
+  - 实验用到的特征有: 
+    -  passResult.json
+    -  personnelD.json
+    -  personnelO.json
+    -  pff_passCoverage.json
+    -  pff_passCoverageType.json
+    -  pff_playAction.json
+    -  pff_positionLinedUp.json
+    -  pff_role.json
+    -  playResult.json
+    -  prePenaltyPlayResult.json
+  - 实验实施了大规模控制变量对比实验，基于GRU序列表及模型对于多个目标特征进行实验
+  - 实验结果显示，`pff_role` 特征的预测准确率可以达到76%（5 epoch）随着后续训练预期可以超过94%，而 `pff_playAction` 特征的预测准确率只有63%（5 epoch），且没有变化，需要进一步改进
+  - 绝大部分特征无法从以tracking data为基础的数据中学习到什么有用的信息
+  - **只能说，各位有什么认为有希望的序列标记目标特征可以和我说，我会去做实验**

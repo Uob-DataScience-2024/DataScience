@@ -7,10 +7,7 @@ from torch.utils.data import Dataset
 from tqdm import tqdm
 import torch.utils
 
-from data.game_data import GameData
-from data.playdata import GamePlayData
-from data.datastructure import GameNFLData
-from data.trackingdata import GameTrackingData
+from data import GameData, GameNFLData, GamePlayData
 
 
 class TrackingDataset(Dataset):
@@ -109,6 +106,8 @@ class SequenceDataset(Dataset):
                 if i not in temp and not pd.isna(i):
                     temp.append(i)
         temp.sort()
+        if pd.api.types.is_numeric_dtype(type(temp[0])):
+            temp = list(map(str, range(0, temp[-1])))
         return temp
 
     def label_size(self):
