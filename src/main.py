@@ -323,7 +323,7 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
 
 def plan_execute(config_dir='configs', logdir='logdir'):
     configs = [x for x in os.listdir(config_dir) if x.endswith('.json')]
-    for i, config in enumerate(configs[3:]):
+    for i, config in enumerate(configs):
         logger.info(f"Start running {config} ({i}/{len(configs)})")
         run_task(TrainingConfigure.from_file(os.path.join(config_dir, config)), logdir)
         gc.collect()

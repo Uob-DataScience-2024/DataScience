@@ -195,7 +195,8 @@ def draw_status(image: np.ndarray, game: GameNFLData, dt: datetime, home_team: s
                 jerseyNumberColor=(13, 148, 136), text_color=(219, 63, 41)):
     h, w = image.shape[:2]
     nfls = []
-    indexes_player = game.tracking.df.index[game.tracking.df['time'] == dt]
+    # indexes_player = game.tracking.df.index[game.tracking.df['time'] == dt]
+    indexes_player = game.df.index[game.df['time'] == dt]
     for index in indexes_player:
         nfls.append(game[index])
 
