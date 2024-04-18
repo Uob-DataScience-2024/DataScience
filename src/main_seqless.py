@@ -1,6 +1,3 @@
-import time
-
-start_import = time.time()
 import datetime
 import gc
 import os
@@ -13,15 +10,16 @@ from torch import nn
 from tqdm import TqdmExperimentalWarning
 import warnings
 import torch.utils.data
-from network import SequenceDataset
+from network import SequenceDataset, TypicalCNN
 from network import Seq2SeqGRU, Seq2SeqLSTM, SameSizeCNN
 from tqdm.rich import tqdm
 import torch.utils.tensorboard
 from rich.progress import Progress
-from utils.training_config import TrainingConfigure
+
+from network.dataset import NonTimeRelatedDataset
+from utils import TrainingConfigure
 from torch.nn import functional as F
 
-logger.info(f"Import time: {time.time() - start_import:.2f}s")
 warnings.filterwarnings("ignore", category=TqdmExperimentalWarning)
 logger.configure(handlers=[{"sink": RichHandler(), "format": "{message}"}])
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -71,58 +69,23 @@ def execute_cell(model: torch.nn.Module, x, y, criterion, optimizer=None, encode
             y = torch.argmax(y, dim=2)
             loss = criterion(pred_y[y != 0], y[y != 0])
         else:
-            loss = criterion(pred_y[y[:, :, 0] != 1], y[y[:, :, 0] != 1])
+            loss = criterion(pred_y[y[:, 0] != 1], y[y[:, 0] != 1])
     else:
-        loss = criterion(pred_y, y)
+        if isinstance(criterion, nn.CrossEntropyLoss):
+            loss = criterion(pred_y, torch.argmax(y, dim=1))
+        else:
+            loss = criterion(pred_y, y)
     if optimizer is not None:
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
+        # torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
         optimizer.step()
         optimizer.zero_grad()
 
-    pred_y = torch.argmax(pred_y, dim=2)
-    y = torch.argmax(y, dim=2)
-    accuracy_all = (pred_y == y).sum().item() / (pred_y.shape[0] * pred_y.shape[1])
-    accuracy_no_na = (pred_y == y)[y != 0].sum().item() / (pred_y.shape[0] * pred_y.shape[1])
+    pred_y = torch.argmax(pred_y, dim=1)
+    y = torch.argmax(y, dim=1)
+    accuracy_all = (pred_y == y).sum().item() / (pred_y.shape[0])
+    accuracy_no_na = (pred_y == y)[y != 0 if ignore_na else y != -1].sum().item() / (pred_y.shape[0])
     return (loss, accuracy_all, accuracy_no_na) if encoder_hidden is None and decoder_hidden is None else (loss, accuracy_all, accuracy_no_na, (encoder_hidden, decoder_hidden))
-
-
-def execute_cell_split(progress: Progress, model: torch.nn.Module, x, y, split_plan, criterion, optimizer=None, batch_first=True):
-    encoder_hidden = None
-    decoder_hidden = None
-    loss = None
-    acc_all = 0
-    acc_no_na = []
-    sub_task = progress.add_task('Sub Sequence', total=len(split_plan))
-    for i, (sub_seq_start, sub_seq_end) in enumerate(split_plan):
-        if batch_first:
-            sub_x = x[:, sub_seq_start:sub_seq_end, :]
-            sub_y = y[:, sub_seq_start:sub_seq_end, :]
-        else:
-            sub_x = x[sub_seq_start:sub_seq_end, :, :]
-            sub_y = y[sub_seq_start:sub_seq_end, :, :]
-
-        sub_loss, sub_acc_all, sub_acc_no_na, (encoder_hidden, decoder_hidden) = execute_cell(model, sub_x, sub_y, criterion, optimizer, encoder_hidden, decoder_hidden, hidden=True)
-        encoder_hidden = encoder_hidden.detach() if type(encoder_hidden) is torch.Tensor else (encoder_hidden[0].detach(), encoder_hidden[1].detach())
-        decoder_hidden = decoder_hidden.detach() if type(decoder_hidden) is torch.Tensor else (decoder_hidden[0].detach(), decoder_hidden[1].detach())
-        if loss is None:
-            loss = sub_loss
-        else:
-            loss += sub_loss
-        acc_all += sub_acc_all
-        if sub_acc_no_na != 0:
-            acc_no_na.append(sub_acc_no_na)
-        n = i + 1
-        progress.update(sub_task,
-                        description=f'Sub Sequence [{i}/{len(split_plan)}], Loss: {loss.item() / n}, Accuracy All: {(acc_all / n) * 100:.2f}% Accuracy No NA: {np.mean(acc_no_na) * 100:.2f}% Acc local: {sub_acc_all * 100:.2f}% Acc No NA local: {sub_acc_no_na * 100:.2f}%',
-                        advance=1)
-
-    progress.remove_task(sub_task)
-
-    loss /= len(split_plan)
-    acc_all /= len(split_plan)
-    # acc_no_na /= len(split_plan)
-    return loss, acc_all, np.mean(acc_no_na) if len(acc_no_na) != 0 else 0
 
 
 def test(model, criterion, test_loader, config: TrainingConfigure):
@@ -134,12 +97,10 @@ def test(model, criterion, test_loader, config: TrainingConfigure):
         with Progress() as progress:
             task_test = progress.add_task('Testing', total=len(test_loader))
             for i, data_group in enumerate(test_loader):
-                if config.training_hyperparameters.sub_sequence:
-                    (data, target, split) = data_group
-                    loss, accuracy_all, accuracy_no_na = execute_cell_split(progress, model, data, target, split, criterion)
-                else:
-                    (data, target) = data_group
-                    loss, accuracy_all, accuracy_no_na = execute_cell(model, data, target, criterion)
+                (data, target) = data_group
+                data = data.unsqueeze(1)
+                target = target[:, 0, :]
+                loss, accuracy_all, accuracy_no_na = execute_cell(model, data, target, criterion)
                 losses.append(loss.item())
                 accuracies_all.append(accuracy_all)
                 if accuracy_no_na != 0:
@@ -151,50 +112,6 @@ def test(model, criterion, test_loader, config: TrainingConfigure):
     logger.info(f'Test Accuracy All: {np.mean(accuracies_all) * 100:.2f}%, Test Accuracy No NA: {np.mean(accuracies_no_na) * 100:.2f}%, Test Loss: {np.mean(losses)}')
 
     return np.mean(accuracies_all), np.mean(accuracies_no_na), np.mean(losses)
-
-
-def main():
-    input_features = ['playId', 'nflId', 'frameId', 'time', 'jerseyNumber', 'team', 'playDirection', 'x', 'y', 's', 'a', 'dis', 'o', 'dir']
-    dataset = SequenceDataset('../data', input_features=input_features, target_feature='pff_role', split=True)
-
-    train_set, test_set = torch.utils.data.random_split(dataset, [int(len(dataset) * 0.8), len(dataset) - int(len(dataset) * 0.8)])
-    train_loader = torch.utils.data.DataLoader(train_set, batch_size=2, shuffle=True, collate_fn=collate_fn)
-    test_loader = torch.utils.data.DataLoader(test_set, batch_size=2, shuffle=False, collate_fn=collate_fn)
-
-    model = Seq2SeqGRU(14, 256, dataset.label_size() + 1, num_layers=3, dropout=0.15)
-    model.to(device)
-    logger.info(model)
-    x_demo, y_demo = dataset[0]
-    logger.info(f'Input Shape: {x_demo.shape}, Output Shape: {y_demo.shape}')
-    criterion = torch.nn.MSELoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=3, gamma=0.8)
-    # optimizer = torch.optim.SGD(model.parameters(), lr=0.0001, momentum=0.9)
-
-    for epoch in range(hyperparameters_training["num_epochs"]):
-        losses = []
-        accuracies_all = []
-        accuracies_no_na = []
-        window = 10
-        for i, (data, target) in enumerate(progress := tqdm(train_loader)):
-            model.train()
-            optimizer.zero_grad()
-            loss, accuracy_all, accuracy_no_na = execute_cell(model, data, target, criterion, optimizer)
-            losses.append(loss.item())
-            accuracies_all.append(accuracy_all)
-            accuracies_no_na.append(accuracy_no_na)
-            progress.set_description_str(
-                f'Epoch [{epoch}/{hyperparameters_training["num_epochs"]}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy All: {np.mean(accuracies_all) * 100:.2f}% Accuracy No NA: {np.mean(accuracies_no_na) * 100:.2f}%')
-            if i % 5 == 0:
-                logger.info(
-                    f'Epoch [{epoch}/{hyperparameters_training["num_epochs"]}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy All: {np.mean(accuracies_all) * 100:.2f}% Accuracy No NA: {np.mean(accuracies_no_na) * 100:.2f}%')
-            if len(losses) > window:
-                losses.pop(0)
-                accuracies_all.pop(0)
-                accuracies_no_na.pop(0)
-
-        scheduler.step()
-        test(model, criterion, test_loader)
 
 
 def init_model(config: TrainingConfigure, dataset):
@@ -210,6 +127,8 @@ def init_model(config: TrainingConfigure, dataset):
         model = Seq2SeqLSTM(input_dim, hidden_dim, dataset.label_size() + 1, num_layers=num_layers, dropout=dropout)
     elif config.model == SameSizeCNN:
         model = SameSizeCNN(input_dim, hidden_dim, dataset.label_size() + 1, num_layers=num_layers, dropout=dropout)
+    elif config.model == TypicalCNN:
+        model = TypicalCNN(dataset.label_size() + 1, hidden_dim, dropout=dropout)
     else:
         raise ValueError('Model not implemented')
 
@@ -246,13 +165,16 @@ class FocalLoss(nn.Module):
 def run_task(config: TrainingConfigure, logdir, model_path=None):
     global SPILT_STEP
     SPILT_STEP = config.training_hyperparameters.split_step
-    dataset = SequenceDataset('../data', input_features=config.input_features, target_feature=config.target_feature, split=config.split)
+    if config.training_hyperparameters.sub_sequence:
+        raise ValueError("Sub sequence not implemented")
+    dataset = NonTimeRelatedDataset('../test_data', input_features=config.input_features, target_feature=config.target_feature, split=config.split)
     split_ratio = config.training_hyperparameters.split_ratio
     batch_size = config.training_hyperparameters.batch_size
     train_set, test_set = torch.utils.data.random_split(dataset, [int(len(dataset) * split_ratio), len(dataset) - int(len(dataset) * split_ratio)])
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn_split if config.training_hyperparameters.sub_sequence else collate_fn)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn_split if config.training_hyperparameters.sub_sequence else collate_fn)
-
+    if init_model == Seq2SeqGRU or init_model == Seq2SeqLSTM:
+        raise ValueError("Seq2Seq model need sub sequence")
     model = init_model(config, dataset)
     if model_path is not None:
         model.load_state_dict(torch.load(model_path))
@@ -292,12 +214,12 @@ def run_task(config: TrainingConfigure, logdir, model_path=None):
             for i, data_group in enumerate(train_loader):
                 model.train()
                 optimizer.zero_grad()
-                if config.training_hyperparameters.sub_sequence:
-                    (data, target, split) = data_group
-                    loss, accuracy_all, accuracy_no_na = execute_cell_split(progress, model, data, target, split, criterion, optimizer)
-                else:
-                    (data, target) = data_group
-                    loss, accuracy_all, accuracy_no_na = execute_cell(model, data, target, criterion, optimizer)
+                (data, target) = data_group
+                if data.shape[0] <= 1:
+                    continue
+                data = data.unsqueeze(1)
+                target = target[:, 0, :]
+                loss, accuracy_all, accuracy_no_na = execute_cell(model, data, target, criterion, optimizer)
                 losses.append(loss.item())
                 accuracies_all.append(accuracy_all)
                 if accuracy_no_na != 0:
@@ -362,5 +284,5 @@ def plan_execute(config_dir='configs', logdir='logdir'):
 
 if __name__ == '__main__':
     print()
-    # run_task(TrainingConfigure.from_file('example.json'), 'logdir')
-    plan_execute()
+    run_task(TrainingConfigure.from_file('example_non_time.json'), 'logdir')
+    # plan_execute()

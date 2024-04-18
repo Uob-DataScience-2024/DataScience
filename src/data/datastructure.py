@@ -275,7 +275,11 @@ class GameNFLData:
         mask = {key: group.index for key, group in group}
         return mask
 
-    def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32, play_id_filter=None, mask=None):
+    def create_mask(self, start_index, end_index):
+        return self.df.index[start_index:end_index]
+
+    def tensor(self, resize_range_overwrite: dict, category_labels_overwrite: dict, columns: list[str] = None, dtype=torch.float32, play_id_filter=None, mask=None, dataframe_out=False,
+               no_repeat=False):
         df = self.df.copy()
         if mask is not None:
             df = df[df.index.isin(mask)]
@@ -283,6 +287,8 @@ class GameNFLData:
             df = df[df['playId'].isin(play_id_filter)]
         if self.home_visitor is not None:
             category_labels_overwrite['team'] = self.home_visitor
+            category_labels_overwrite['defensiveTeam'] = self.home_visitor
+            category_labels_overwrite['possessionTeam'] = self.home_visitor[::-1]
         if columns is None:
             columns = df.columns
         elif len(list(filter(lambda x: x not in df.columns, columns))):
@@ -356,5 +362,7 @@ class GameNFLData:
         # all nan to -1
         df = df[columns]
         df = df.fillna(-1)
+        if no_repeat:
+            df = df.drop_duplicates()
         tensor = torch.tensor(df.values, dtype=dtype)
-        return tensor, data_map
+        return (tensor, data_map) if not dataframe_out else (df, data_map)
