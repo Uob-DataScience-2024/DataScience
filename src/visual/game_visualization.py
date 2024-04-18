@@ -167,6 +167,38 @@ def draw_by_time(image: np.ndarray, game: GameNFLData, football_tracking: GameFo
         pass
 
 
+def draw_by_time_df(image: np.ndarray, df: pd.DataFrame, dt: datetime, home_team: str):
+    cycle_r = 0.015
+    cycle_r_football = 0.005
+    try:
+
+        player = df[np.logical_and(df['time'] == dt, ~np.isnan(df['nflId']))]
+        # for index in indexes_player:
+        #     player.append(game.tracking[index])
+
+        football = df[np.logical_and(df['time'] == dt, np.isnan(df['nflId']))].iloc[0]
+
+        circles = []
+        texts = []
+        is_home = []
+        for i, item in player.iterrows():
+            is_home.append(item['team'] == home_team)
+            circles.append(Circle(item['x'] / 120, item['y'] / 53.3, cycle_r, True))
+            texts.append(Text(item.x / 120, item.y / 53.3, f" {item.jerseyNumber:.0f} "))
+        football = Circle(football['x'] / 120, football['y'] / 53.3, cycle_r_football, True)
+        yard_lines = get_yard_lines()
+        for line in yard_lines:
+            line.draw(image, (172, 88, 245))
+        for i, (player, player_text) in enumerate(zip(circles, texts)):
+            player.draw(image, (14, 165, 233) if is_home[i] else (255, 80, 110))
+            player_text.draw(image, (246, 227, 93))
+        football.draw(image, (55, 71, 108))
+
+    except:
+        traceback.print_exc()
+        pass
+
+
 def draw_background(image: np.ndarray, banner="", color: tuple[int, int, int] = (255, 255, 255), font_color: tuple[int, int, int] = (0, 0, 0),
                     amplification_factor_x=1.3,
                     amplification_factor_y_top=1.2,
@@ -219,7 +251,8 @@ def draw_status(image: np.ndarray, game: GameNFLData, dt: datetime, home_team: s
     y_base = start_y + (h - start_y) * 0.3
     draw_player_info(block_bottom_margin, block_left_margin, block_right_margin, block_top_margin, font_size, h, home_data, image, jerseyNumberColor, text_color, thickness, w, x_base, y_base, w // 2)
     x_base += w // 2
-    draw_player_info(block_bottom_margin, block_left_margin, block_right_margin, block_top_margin, font_size, h, visitor_data, image, jerseyNumberColor, text_color, thickness, w, x_base, y_base, w *0.98)
+    draw_player_info(block_bottom_margin, block_left_margin, block_right_margin, block_top_margin, font_size, h, visitor_data, image, jerseyNumberColor, text_color, thickness, w, x_base, y_base,
+                     w * 0.98)
 
 
 def draw_player_info(block_bottom_margin, block_left_margin, block_right_margin, block_top_margin, font_size, h, home_data, image, jerseyNumberColor, text_color, thickness, w, x_base, y_base, x_end):
@@ -229,6 +262,68 @@ def draw_player_info(block_bottom_margin, block_left_margin, block_right_margin,
         text = f"{nfl.jerseyNumber:.0f}: {nfl.pff_role}"
         text_p1 = f"{nfl.jerseyNumber:.0f}: "
         text_p2 = f"{nfl.pff_role}"
+        (text_width, text_height), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_size, 2)
+        (text_width_p1, text_height_p1), baseline_p1 = cv2.getTextSize(text_p1, cv2.FONT_HERSHEY_SIMPLEX, font_size, thickness)
+        block_width = text_width + block_left_margin * w + block_right_margin * w
+        block_height = text_height + block_top_margin * h + block_bottom_margin * h
+        if x_base + current_x + block_width > x_end:
+            current_x = 0
+            current_y += block_height
+        x = int(x_base + current_x + block_left_margin * w)
+        y = int(y_base + current_y + block_top_margin * h + text_height / 2)
+        cv2.putText(image, text_p1, (x, y), cv2.FONT_HERSHEY_SIMPLEX, font_size, jerseyNumberColor, thickness)
+        cv2.putText(image, text_p2, (x + text_width_p1, y), cv2.FONT_HERSHEY_SIMPLEX, font_size, text_color, thickness)
+        current_x += block_width
+
+
+def draw_status_df(image: np.ndarray, df: pd.DataFrame, dt: datetime, home_team: str, start_y: int,
+                   font_size=1.5, thickness=2,
+                   jerseyNumberColor=(13, 148, 136), text_color=(219, 63, 41), targetX='jerseyNumber', targetY='pff_role', draw_once=False):
+    h, w = image.shape[:2]
+    player = df[df['time'] == dt]
+    home_data = player[player['team'] == home_team]
+    visitor_data = player[player['team'] != home_team]
+
+    if not draw_once:
+        cv2.line(image, (w // 2, int(start_y + (h - start_y) * 0.2)), (w // 2, int(start_y + (h - start_y) * 0.8)), (65, 203, 191), 4)
+
+        block_top_margin = 0.005
+        block_bottom_margin = 0.005
+        block_left_margin = 0.005
+        block_right_margin = 0.005
+        x_base = 0.025 * w
+        y_base = start_y + (h - start_y) * 0.3
+        draw_player_info_df(block_bottom_margin, block_left_margin, block_right_margin, block_top_margin, font_size, h, home_data, image, jerseyNumberColor, text_color, thickness, w, x_base, y_base,
+                            w // 2, targetX, targetY)
+        x_base += w // 2
+        draw_player_info_df(block_bottom_margin, block_left_margin, block_right_margin, block_top_margin, font_size, h, visitor_data, image, jerseyNumberColor, text_color, thickness, w, x_base,
+                            y_base,
+                            w * 0.98, targetX, targetY)
+    else:
+        center_x = w // 2
+        center_y = start_y + (h - start_y) * 0.5
+        d = player.iloc[0]
+        text = f"{d[targetX]}: {d[targetY]}"
+        text_p1 = f"{d[targetX]}: "
+        text_p2 = f"{d[targetY]}"
+        (text_width, text_height), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_size, 2)
+        (text_width_p1, text_height_p1), baseline_p1 = cv2.getTextSize(text_p1, cv2.FONT_HERSHEY_SIMPLEX, font_size, thickness)
+        x = int(center_x - text_width // 2)
+        y = int(center_y + text_height // 2)
+        cv2.putText(image, text_p1, (x, y), cv2.FONT_HERSHEY_SIMPLEX, font_size, jerseyNumberColor, thickness)
+        cv2.putText(image, text_p2, (x + text_width_p1, y), cv2.FONT_HERSHEY_SIMPLEX, font_size, text_color, thickness)
+
+
+def draw_player_info_df(block_bottom_margin, block_left_margin, block_right_margin, block_top_margin, font_size, h, data, image, jerseyNumberColor, text_color, thickness, w, x_base, y_base,
+                        x_end, targetX='jerseyNumber', targetY='pff_role'):
+    current_x = 0
+    current_y = 0
+    for i, nfl in data.iterrows():
+        if pd.isna(nfl[targetX]) or pd.isna(nfl[targetY]):
+            continue
+        text = f"{nfl[targetX]:.0f}: {nfl[targetY]}"
+        text_p1 = f"{nfl[targetX]:.0f}: "
+        text_p2 = f"{nfl[targetY]}"
         (text_width, text_height), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_size, 2)
         (text_width_p1, text_height_p1), baseline_p1 = cv2.getTextSize(text_p1, cv2.FONT_HERSHEY_SIMPLEX, font_size, thickness)
         block_width = text_width + block_left_margin * w + block_right_margin * w

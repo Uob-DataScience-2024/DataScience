@@ -4,3 +4,4 @@ from .trackingdata import TrackingDataItem, GameTrackingData
 from .datastructure import NFLDataItem, GameNFLData
 from .game_data import GameData
 from .football_data import GameFootBallTrackingData
+from .player_data import PlayerData

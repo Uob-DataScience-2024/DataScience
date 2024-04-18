@@ -83,6 +83,7 @@ class GamePlayData:
         self.gameId = gameId
         cp = df.copy()
         cp['gameClock'] = pd.to_datetime(df['gameClock'], format='%M:%S')
+        cp = self.special_preprocess(cp)
         self.df = cp
         columns = df.columns
         headers = {}
@@ -101,6 +102,15 @@ class GamePlayData:
             sub_df = df[df['gameId'] == gameId]
             loaded[gameId] = GamePlayData(gameId, sub_df)
         return loaded
+
+    def special_preprocess(self, df: pd.DataFrame) -> pd.DataFrame:
+        # process preSnapVisitorScore and preSnapHomeScore
+        df['preSnapVisitorScore'] = df['preSnapVisitorScore'].diff().fillna(0)
+        df['preSnapHomeScore'] = df['preSnapHomeScore'].diff().fillna(0)
+        # df['passResult'] = df['passResult'].apply(lambda x: "True" if x == 'C' else "False")
+        # df['pff_passCoverage'] = df['pff_passCoverage'].apply(lambda x: ("Yes" if x == 'Cover-3' else "False") if x in ['Cover-3', 'Cover-1'] else "Unknown")
+        df['offenseFormation'] = df['offenseFormation'].apply(lambda x: "True" if x == "SHOTGUN" else "False")
+        return df
 
     def __str__(self):
         return f'GamePlayData(gameId={self.gameId}, df=[len:{self.df.shape[0]}, number columns:{len(self.df.columns)}])'

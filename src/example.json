@@ -1,21 +1,5 @@
 {
-    "input_features": [
-        "playId",
-        "nflId",
-        "frameId",
-        "time",
-        "jerseyNumber",
-        "team",
-        "playDirection",
-        "x",
-        "y",
-        "s",
-        "a",
-        "dis",
-        "o",
-        "dir",
-        "pff_role"
-    ],
+    "input_features": ["playId", "nflId", "frameId", "time", "jerseyNumber", "team", "playDirection", "x", "y", "s", "a", "dis", "o", "dir", "pff_role"],
     "model": "GRU",
     "model_hyperparameters": {
         "dropout": 0.15,
