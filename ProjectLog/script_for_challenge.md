@@ -1,0 +1,15 @@
+I am glad to share one of the key challenges and insights from our project regarding data handling and the application of neural networks.
+
+From the outset of the project, we embarked on an in-depth exploration of data structures and the study of sub-data merging. This initial phase was successful, as we managed to implement structured data loading and experiments with rapid tensor conversion capabilities.
+
+Building on this foundation, we began experimenting with using neural networks for sequence labeling tasks with NFL data. Initially, the experiments seemed promising; we quickly integrated structured data objects with the neural network dataset class and developed training and inference code. In the sequence labeling experiment, we used the pffBlockType data column for labeling, achieving an accuracy of up to 94% on the validation set at one point. However, this high accuracy concealed a significant issue—due to the specific nature of sequence labeling, it was not feasible to remove N/A rows from the label column, leading to falsely high accuracy largely reflecting the model's erroneous output of N/A classifications.
+
+Upon recognizing this issue, we immediately revised the accuracy testing code to exclude N/A impacts, which resulted in a drastic drop in accuracy. Attempts were made to mask the gradients of the N/A portions during backpropagation, but these were not effective.
+
+To improve model performance, we further implemented a feature allowing batch neural network training by simply modifying a JSON configuration file. After several experiments, we found that accuracy exceeded 90% only when targeting the pff_role column. However, we later realized that in NFL games, pff_role is often fixed, making it a meaningful prediction from a data science perspective but not very practical from an NFL application standpoint.
+
+Additionally, in attempts to replicate experiments from our peers, we discovered the severity of data pollution, particularly how the abundance of N/A data severely impacted the entire neural network's performance. Compared to traditional machine learning methods, neural networks proved less robust in handling N/A data, as they lack mechanisms to automatically mask these effects during backpropagation.
+
+Ultimately, we concluded that the sequence labeling network approach was not optimal for NFL data. After a thorough discussion on the real-world relevance of the NFL data, we decided to abandon the sequence-based training model. Encouragingly, we found that simply using the GameClock data at the input end also demonstrated excellent performance in non-sequential training.
+
+Through this series of challenges and adjustments, we not only deepened our understanding of the data but also enhanced our ability to tackle complex data processing issues.
