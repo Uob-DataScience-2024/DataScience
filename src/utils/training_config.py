@@ -2,12 +2,15 @@ import json
 
 import torch
 
-from network import Seq2SeqLSTM, Seq2SeqGRU, SameSizeCNN
+from network.model import SimpleNN
+from network import Seq2SeqLSTM, Seq2SeqGRU, SameSizeCNN, TypicalCNN
 
 models = {
     'LSTM': Seq2SeqLSTM,
     'GRU': Seq2SeqGRU,
-    'CNN': SameSizeCNN
+    'CNN': SameSizeCNN,
+    'TypicalCNN': TypicalCNN,
+    'SimpleNN': SimpleNN,
 }
 
 optimizers = {

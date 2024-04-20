@@ -60,7 +60,7 @@ class TrackingDataset(Dataset):
 
 
 class SequenceDataset(Dataset):
-    def __init__(self, data_dir, split=False, input_features: list = None, target_feature: str = None):
+    def __init__(self, data_dir, split=False, input_features: list = None, target_feature: str = None, max_seq_len=30000):
         weeks = [x for x in os.listdir(data_dir) if x.startswith('week')]
         if len(weeks) == 0:
             raise ValueError("No week file found")
@@ -83,6 +83,7 @@ class SequenceDataset(Dataset):
         if self.input_features is not None:
             self.preprocess()
         self.label_map = self.build_label_map() if self.target_feature is not None else {}
+        self.max_seq_len = max_seq_len
 
     def preprocess(self):
         self.input_feature_label = {col: [] for col in self.input_features}
@@ -140,7 +141,7 @@ class SequenceDataset(Dataset):
             target = data[:, -1]
         # one hot encoding for label
         target = torch.nn.functional.one_hot(target.to(torch.int64) + 1, num_classes=self.label_size() + 1).squeeze(1)
-        return features, target
+        return features[:self.max_seq_len], target[:self.max_seq_len]
 
 
 class SegmentDataset(Dataset):
@@ -236,3 +237,105 @@ class SegmentDataset(Dataset):
             features = self.padding(features)
         target = torch.nn.functional.one_hot(target.to(torch.int64) + 1, num_classes=self.label_size() + 1).squeeze(0)
         return features, target
+
+
+class NonTimeRelatedDataset(Dataset):
+    def __init__(self, data_dir, split=False, input_features: list = None, target_feature: str = None, numpy_output=False):
+        self.access_credit = None
+        weeks = [x for x in os.listdir(data_dir) if x.startswith('week')]
+        if len(weeks) == 0:
+            raise ValueError("No week file found")
+        weeks = [os.path.join(data_dir, x) for x in weeks]
+        play_file = os.path.join(data_dir, 'plays.csv')
+        pff_file = os.path.join(data_dir, 'pffScoutingData.csv')
+        games_file = os.path.join(data_dir, 'games.csv')
+        self.nfl_data = GameNFLData.loads(weeks, pff_file, play_file)
+        self.game_data = GameData(games_file)
+        self.game_ids = list(self.nfl_data.keys())
+        self.home_visitor = self.game_data.get_home_visitor()
+        self.split = split
+        self.spilt_data = {
+            key: value.get_quarter_partition() for key, value in self.nfl_data.items()
+        }
+        self.input_features = input_features
+        self.target_feature = target_feature
+        self.input_feature_label = {}
+        self.item_max_len = 0
+        if self.input_features is not None:
+            self.preprocess()
+        self.label_map = self.build_label_map() if self.target_feature is not None else {}
+        self.numpy_output = numpy_output
+
+    def preprocess(self):
+        self.input_feature_label = {col: [] for col in self.input_features}
+        self.item_max_len = 0
+        self.access_credit = []
+        for game_id in tqdm(self.game_ids, desc='Preprocessing data', total=len(self.game_ids)):
+            self.nfl_data[game_id].set_home_visitor(*self.home_visitor[game_id])
+            tracking_data = self.nfl_data[game_id]
+            for col in self.input_features:
+                if pd.api.types.is_string_dtype(tracking_data.df[col]):
+                    labels = tracking_data.df[col].unique().tolist()
+                    self.input_feature_label[col] += labels
+            time_group = tracking_data.df.sort_values('time')
+
+            # time_group['time'] = time_group['time'].astype(str)
+            # time_group = time_group.groupby('time')
+            # time_group = time_group.apply(lambda x: x.index.values)
+
+            time_group['time_diff'] = time_group['time'].diff().dt.total_seconds()
+            threshold = 10
+            time_group['group'] = (time_group['time_diff'] > threshold).cumsum()
+            group_indices = time_group.groupby('group').apply(lambda x: x.index.tolist())
+            for group, index_arr in group_indices.items():
+                index_arrs = time_group[time_group.index.isin(index_arr)].groupby('time').apply(lambda x: x.index.tolist())
+                self.access_credit.append((game_id, group, index_arrs.values[0]))
+        self.input_feature_label = {col: list(set(self.input_feature_label[col])) for col in self.input_features if len(self.input_feature_label[col]) > 0}
+
+    def build_label_map(self):
+        temp = []
+        for game_id in self.game_ids:
+            df = self.nfl_data[game_id].df
+            col = self.target_feature if self.target_feature is not None else df.columns[-1]
+            label = df[col].unique()
+            for i in label:
+                if i not in temp and not pd.isna(i):
+                    temp.append(i)
+        temp.sort()
+        if pd.api.types.is_numeric_dtype(type(temp[0])):
+            if type(temp[0]) == int:
+                temp = list(map(str, range(temp[0], temp[-1] + 1)))
+            else:
+                temp = list(map(str, temp))
+        return temp
+
+    def label_size(self):
+        return len(self.label_map)
+
+    def __len__(self):
+        return len(self.access_credit)
+
+    def __getitem__(self, idx):
+        game_id, group, mask = self.access_credit[idx]
+        tracking_data = self.nfl_data[game_id]
+        tracking_data.set_home_visitor(*self.home_visitor[game_id])
+        # mask = tracking_data.df.index.isin(range(start, end + 1))
+        category_labels_overwrite = {self.target_feature: self.label_map, **self.input_feature_label} if self.target_feature is not None else self.input_feature_label
+        data, _ = tracking_data.tensor(resize_range_overwrite={}, category_labels_overwrite=category_labels_overwrite,
+                                       columns=self.input_features + [self.target_feature] if self.input_features is not None and self.target_feature is not None else None, mask=mask,
+                                       dataframe_out=self.numpy_output, no_repeat=True)
+        # TODO: Big Change !!!!!!!!!!!!
+        if self.numpy_output:
+            data = data.values
+        if self.input_features is not None and self.target_feature is not None:
+            features = data[:, :len(self.input_features)]
+            target = data[:, len(self.input_features):]
+        else:
+            features = data[:, :-1]
+            target = data[:, -1]
+            # one hot encoding for label
+        if not self.numpy_output:
+            target = torch.nn.functional.one_hot(target.to(torch.int64) + 1, num_classes=self.label_size() + 1).squeeze(1)
+            return features, target
+        else:
+            return features, target

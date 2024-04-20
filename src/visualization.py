@@ -2,7 +2,7 @@ import threading
 
 from visual.game_visualization import *
 from data import GameNFLData, GameTrackingData, TrackingDataItem, GameFootBallTrackingData, GameData
-
+from data.total_data import TrackingNormData, PffNormData, PlayNormData, PlayerNormData, GameNormData, MergeNormData
 from loguru import logger
 from matplotlib import pyplot as plt
 from tqdm.rich import tqdm
@@ -23,7 +23,6 @@ class VideoPipline:
         self.inited = False
         self.process = None
         self.out = None
-
 
     def build(self, width, height):
         if self.encoder == "ffmpeg":
@@ -64,6 +63,8 @@ class VideoPipline:
 
 class Visual:
     def __init__(self, args):
+        if args is None:
+            return
         self.data_dir = args.data_dir
         self.fps = args.fps
         self.encoder = args.encoder
@@ -105,6 +106,37 @@ class Visual:
         else:
             self.opencv_encode(result)
 
+    # def run_new(self, gameid, tracking: TrackingNormData, pff: PffNormData, play: PlayNormData, game: GameNormData, player: PlayerNormData, merge: MergeNormData, targetX='jerseyNumber', targetY='pff_role'):
+    #     df = merge.game.copy()
+    #     df = df[df['gameId'] == gameid]
+    #     home_visitor = merge.game_info[merge.game_info['gameId'] == game][['homeTeamAbbr', 'visitorTeamAbbr']].values[0]
+    #     dts = df['time'].unique()
+    #     start = dts[0]
+    #     if self.time_max > 0:
+    #         dts = [x for x in dts if x <= start + timedelta(seconds=self.time_max)]
+    #     result = []
+    #     last_dt = dts[0]
+    #     for dt in tqdm(dts):
+    #         image = np.zeros((1106, 2400, 3), dtype=np.uint8)
+    #         image.fill(255)
+    #         draw_by_time_df(image, df, dt, home_visitor)
+    #         ms_interval = (dt - last_dt).total_seconds() * 1000
+    #         if ms_interval > 1000 * 5:
+    #             ms_interval = 1000
+    #         last_dt = dt
+    #         # draw datetime
+    #         image, bottom_y = draw_background(image, f"{home_visitor[0]} vs {home_visitor[1]} - {str(game)}", (209, 222, 233), (242, 149, 89))
+    #         draw_status_df(image, df, dt, home_visitor[0], bottom_y, targetY='event')
+    #         cv2.putText(image, dt.strftime('%Y-%m-%d %H:%M:%S'), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (32, 44, 57), 2)
+    #         image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    #         result.append((np.array(image, dtype=np.uint8), ms_interval))
+    #         yield image.copy()
+    #
+    #     if self.encoder == "ffmpeg":
+    #         self.ffmpeg_encode(result)
+    #     else:
+    #         self.opencv_encode(result)
+
     def run_low_memory(self):
         games, game_data = self.load_demo_data_nfl_data()
         if self.gameid not in games:
@@ -139,6 +171,38 @@ class Visual:
             repeat_times = round(ms_interval / one_frame_duration_ms)
             for _ in range(max(1, repeat_times)):
                 pipline.write(image)
+
+    def run_new_low_memory(self, gameid, tracking: TrackingNormData, pff: PffNormData, play: PlayNormData, game: GameNormData, player: PlayerNormData, merge: MergeNormData, targetX='jerseyNumber', targetY='pff_role', draw_once=False):
+        df = merge.game.copy()
+        df = df[df['gameId'] == gameid]
+        home_visitor = merge.game_info[merge.game_info['gameId'] == gameid][['homeTeamAbbr', 'visitorTeamAbbr']].values[0]
+        dts = df['time'].unique()
+        start = dts[0]
+        if self.time_max > 0:
+            dts = [x for x in dts if x <= start + timedelta(seconds=self.time_max)]
+        pipline = VideoPipline(self.encoder, self.output, self.fps)
+        one_frame_duration_ms = 1000 / self.fps
+        last_dt = dts[0]
+        for dt in tqdm(dts):
+            image = np.zeros((1106, 2400, 3), dtype=np.uint8)
+            image.fill(255)
+            draw_by_time_df(image, df, dt, home_visitor[0])
+            ms_interval = (dt - last_dt).total_seconds() * 1000
+            if ms_interval > 1000 * 5:
+                ms_interval = 1000
+            last_dt = dt
+            # draw datetime
+            image, bottom_y = draw_background(image, f"{home_visitor[0]} vs {home_visitor[1]} - {str(gameid)}", (209, 222, 233), (242, 149, 89))
+            draw_status_df(image, df, dt, home_visitor[0], bottom_y, targetX=targetX, targetY=targetY, draw_once=draw_once)
+            cv2.putText(image, dt.strftime('%Y-%m-%d %H:%M:%S'), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (32, 44, 57), 2)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            if not pipline.inited:
+                height, width = image.shape[:2]
+                pipline.build(width, height)
+            repeat_times = round(ms_interval / one_frame_duration_ms)
+            for _ in range(max(1, repeat_times)):
+                pipline.write(image)
+            yield image.copy()
 
     # loading
 
