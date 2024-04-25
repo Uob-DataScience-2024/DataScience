@@ -31,7 +31,7 @@ def load_demo_data_nfl_data() -> tuple[dict[int, GameNFLData], GameData]:
     return gameNFLData, game_data
 
 
-def ffmpeg_encode(frames: list[np.ndarray], fps = 25):
+def ffmpeg_encode(frames: list[np.ndarray], fps=25):
     height, width = frames[0][0].shape[:2]
 
     # FFmpeg命令，使用libx264编码器，并启用CUDA
@@ -233,6 +233,40 @@ class VisualTest(unittest.TestCase):
         ffmpeg_encode(result)
         self.assertEqual(True, True)
 
+    def test_video_new_info(self):
+        tracking, pff, play, game, player, merge = load_data('../test_data')
+        game = merge.game.iloc[0]['gameId']
+        home_visitor = merge.game_info[merge.game_info['gameId'] == game][['homeTeamAbbr', 'visitorTeamAbbr']].values[0]
+        data = merge.game[merge.game['gameId'] == game]
+        dts = merge.game['time'].unique()
+        dts = list(sorted(dts))
+        time_max = 60 * 1
+        start = dts[0]
+        dts = [x for x in dts if start <= x <= start + timedelta(seconds=time_max)]
+        result = []
+        last_dt = dts[0]
+        for dt in tqdm(dts):
+            image = np.zeros((1106, 2400, 3), dtype=np.uint8)
+            image.fill(255)
+            draw_by_time_df(image, data, dt, home_visitor[0])
+            ms_interval = (dt - last_dt).total_seconds() * 1000
+            if ms_interval > 1000 * 5:
+                ms_interval = 1000
+            last_dt = dt
+            # draw datetime
+            image, bottom_y = draw_background(image, f"{home_visitor[0]} vs {home_visitor[1]} - {str(game)}", (209, 222, 233), (242, 149, 89))
+            infos = [
+                {'col': 'passResult', 'template': '{key}: {value}'},
+                {'col': 'playResult', 'template': '{key}: {value}'},
+                {'col': 'defensiveTeam', 'template': '{key}: {value}'},
+            ]
+            draw_play_info_by_template(image, data, dt, bottom_y, target_columns=infos)
+            cv2.putText(image, dt.strftime('%Y-%m-%d %H:%M:%S'), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (32, 44, 57), 2)
+            image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            result.append((np.array(image, dtype=np.uint8), ms_interval))
+
+        ffmpeg_encode(result)
+        self.assertEqual(True, True)
 
 
 if __name__ == '__main__':

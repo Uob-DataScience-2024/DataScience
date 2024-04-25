@@ -56,6 +56,7 @@ class StatisticsTest(unittest.TestCase):
         logger.info("Data loaded")
         teams = tracking.data['team'].dropna().unique()
         df['gameId-playId'] = df['gameId'].astype(str) + '-' + df['playId'].astype(str)
+        teams = teams[teams == 'TB']
         for team in teams:
             sdf = df[np.logical_and(df['team'] == team, df['defensiveTeam'] == team)]  # the data which is the team's defense
             sdf.drop_duplicates(subset=['gameId-playId'], inplace=True)
@@ -75,14 +76,14 @@ class StatisticsTest(unittest.TestCase):
                 pff_passCoverageType = subdata['pff_passCoverageType']
                 data = [defendersInBox, personnelD, pff_passCoverage, pff_passCoverageType]
                 # draw the frequency of each data, but x-axis is the label
-                fig, axs = plt.subplots(2, 2, figsize=(12, 6))
+                fig, axs = plt.subplots(2, 2, figsize=(14, 6))
                 for i, ax in enumerate(axs.flat):
                     ax.hist(data[i], bins=len(labels[i]))
                     ax.set_xticks(labels[i])
                     if type(labels[i][0]) == str and len(labels[i][0]) > 8:
                         ax.set_xticklabels(labels[i], rotation=45)
                     ax.set_title(['defendersInBox', 'personnelD', 'pff_passCoverage', 'pff_passCoverageType'][i])
-                fig.suptitle(f'offenseFormation: {key}')
+                fig.suptitle(f'team: {team} - offenseFormation: {key}')
                 fig.tight_layout()
                 figs.append(fig)
 

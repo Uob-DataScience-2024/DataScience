@@ -361,8 +361,15 @@ class GameNFLData:
                 pass
         # all nan to -1
         df = df[columns]
-        df = df.fillna(-1)
+        df = df.fillna(method='ffill')
+
         if no_repeat:
             df = df.drop_duplicates()
         tensor = torch.tensor(df.values, dtype=dtype)
         return (tensor, data_map) if not dataframe_out else (df, data_map)
+
+def convertTimeToNumerical(t):
+    t = t.split(":")
+    if len(t) == 2:
+        return int(t[0]) * 60 + int(t[1])
+    return int(t[0]) * 3600 + int(t[1]) * 60 + int(t[2])

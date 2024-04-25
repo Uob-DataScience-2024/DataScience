@@ -362,5 +362,5 @@ def plan_execute(config_dir='configs', logdir='logdir'):
 
 if __name__ == '__main__':
     print()
-    # run_task(TrainingConfigure.from_file('example.json'), 'logdir')
-    plan_execute()
+    run_task(TrainingConfigure.from_file('example.json'), 'logdir')
+    # plan_execute()

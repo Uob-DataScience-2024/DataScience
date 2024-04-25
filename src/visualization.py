@@ -172,9 +172,10 @@ class Visual:
             for _ in range(max(1, repeat_times)):
                 pipline.write(image)
 
-    def run_new_low_memory(self, gameid, tracking: TrackingNormData, pff: PffNormData, play: PlayNormData, game: GameNormData, player: PlayerNormData, merge: MergeNormData, targetX='jerseyNumber', targetY='pff_role', draw_once=False):
+    def run_new_low_memory(self, gameid, tracking: TrackingNormData, pff: PffNormData, play: PlayNormData, game: GameNormData, player: PlayerNormData, merge: MergeNormData, info_config: list, filter_feature, filter_target):
         df = merge.game.copy()
         df = df[df['gameId'] == gameid]
+        df = df if filter_feature is None or filter_target is None else df[df[filter_feature] == filter_target]
         home_visitor = merge.game_info[merge.game_info['gameId'] == gameid][['homeTeamAbbr', 'visitorTeamAbbr']].values[0]
         dts = df['time'].unique()
         start = dts[0]
@@ -193,7 +194,7 @@ class Visual:
             last_dt = dt
             # draw datetime
             image, bottom_y = draw_background(image, f"{home_visitor[0]} vs {home_visitor[1]} - {str(gameid)}", (209, 222, 233), (242, 149, 89))
-            draw_status_df(image, df, dt, home_visitor[0], bottom_y, targetX=targetX, targetY=targetY, draw_once=draw_once)
+            draw_play_info_by_template(image, df, dt, bottom_y, target_columns=info_config)
             cv2.putText(image, dt.strftime('%Y-%m-%d %H:%M:%S'), (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (32, 44, 57), 2)
             image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
             if not pipline.inited:

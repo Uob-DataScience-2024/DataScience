@@ -1,12 +1,15 @@
 import os
 
 import gradio as gr
+import pandas as pd
 
 from actuator.decision_tree import DecisionTreeConfig, DecisionTreeScheduler
 from actuator.neural_network import NeuralNetworkScheduler
 from network.mutable_dataset import DataGenerator
 from ui.tools import ProcessManager, load_config, save_config
 from utils import TrainingConfigure
+
+scheduler: NeuralNetworkScheduler = None
 
 
 def train_nn(
@@ -15,6 +18,7 @@ def train_nn(
         epochs: int, batch_size: int, learning_rate: float, split_ratio: float,
         gpu: bool = False, norm: bool = False, player_needed: bool = False, game_needed: bool = False,
         data_generator: DataGenerator = None):
+    global scheduler
     progress_manager = ProcessManager(disable=False)
     config = TrainingConfigure(
         input_features=x_cols, target_feature=y_col,
@@ -30,7 +34,30 @@ def train_nn(
     scheduler.prepare(norm=norm, player_needed=player_needed, game_needed=game_needed)
     for i, (text, image) in enumerate(scheduler.train(epochs, batch_size, split_ratio)):
         gr.Info(f"Training {i}/{epochs} epoch...[{(i + 1) / epochs * 100:.2f}%]")
-        yield text, image
+        yield text, *image
+
+
+def call_feature_analysis(input_cols, limit=10):
+    result = scheduler.input_features_analysis(limit)
+    result *= 100
+    df = pd.DataFrame([list(map(lambda x: f"{x:.3f}%", result.tolist()))], columns=input_cols)
+    return df
+
+
+def call_feature_analysis_target(input_cols, labels, targets, limit=10):
+    if targets is None or len(targets) == 0:
+        return call_feature_analysis(input_cols, limit)
+    results = scheduler.input_features_analysis_with_target(limit, labels, targets)
+    data = []
+    index = []
+    for key, value in results.items():
+        data.append(list(map(lambda x: f"{x * 100:.3f}%", value.tolist())))
+        index.append(key)
+    df = pd.DataFrame(data, columns=input_cols, index=index)
+    # copy index to columns
+    df['index'] = df.index
+    df = df[['index'] + input_cols]
+    return df
 
 
 def train_rf(
@@ -104,13 +131,27 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
             btn_train = gr.Button("Train", variant="primary")
             # btn_stop = gr.Button("Stop", variant="stop")
             info = gr.Textbox("Training info", value="")
-            image_plot = gr.Plot(label="Training info plot")
+            with gr.Row():
+                image_plot_loss = gr.Plot(label="Training info plot(loss)")
+                image_plot_acc = gr.Plot(label="Training info plot(accuracy)")
             # close progress for image plot only
-            t_event = btn_train.click(fn=lambda *x: (yield from train_nn(*x[:-1], data_generator=data_generator)), show_progress="minimal",
-                                      inputs=[x_cols, y_col, num_classes, model, optimizer, criterion, epochs, batch_size, learning_rate, split_ratio, gpu, norm, player_needed, game_needed,
-                                              image_plot],
-                                      outputs=[info, image_plot])
+            t_event = btn_train.click(fn=lambda *x: (yield from train_nn(*x, data_generator=data_generator)), show_progress="minimal",
+                                      inputs=[x_cols, y_col, num_classes, model, optimizer, criterion, epochs, batch_size, learning_rate, split_ratio, gpu, norm, player_needed, game_needed],
+                                      outputs=[info, image_plot_loss, image_plot_acc])
             # btn_stop.click(fn=None, cancels=[t_event])
+    with gr.Row():
+        with gr.Column():
+            gr.Markdown("### Model Analysis")
+
+            gradient_test_limit = gr.Slider(label="Gradient Test Data Limit", value=4, minimum=1, maximum=100, step=1)
+            labels_to_test = gr.CheckboxGroup(label="Labels to Test", choices=sorted(full_col['passResult'].astype('category').unique()))
+            btn_analysis = gr.Button("Feature Analysis", variant="primary")
+            feature_analysis = gr.DataFrame(label="Feature Analysis")
+            # btn_analysis.click(fn=call_feature_analysis, inputs=[x_cols, gradient_test_limit], outputs=[feature_analysis])
+            btn_analysis.click(fn=lambda *x: call_feature_analysis_target(x[0], sorted(full_col[x[1]].astype('category').unique()), x[2], x[3]),
+                               inputs=[x_cols, y_col, labels_to_test, gradient_test_limit],
+                               outputs=[feature_analysis])
+            y_col.change(lambda x: gr.CheckboxGroup(choices=sorted(full_col[x].astype('category').unique()), value=[]), inputs=[y_col], outputs=[labels_to_test])
 
 
 def rf_ui(columns, data_generator, full_col, config_dir='configs/rf'):
