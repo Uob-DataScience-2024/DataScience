@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from captum.attr import IntegratedGradients
 from loguru import logger
 from torch import nn
 from rich.progress import Progress
@@ -111,7 +112,7 @@ class Trainer:
             self.writer.add_scalar("Testing/Epoch Accuracy", test_accuracy * 100, epoch)
             yield (f"Epoch {epoch + 1}/{epochs}, " +
                    f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy * 100:.4f}%, " +
-                   f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy * 100:.4f}%"), self.draw_plot(loss_epoch, accuracy_epoch)
+                   f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy * 100:.4f}%"), self.draw_plot_2(loss_epoch, accuracy_epoch)
 
     @staticmethod
     def draw_plot(loss, acc):
@@ -125,6 +126,22 @@ class Trainer:
         fig.tight_layout()
         return fig
 
+    @staticmethod
+    def draw_plot_2(loss, acc):
+        fig1 = plt.figure()
+        ax1 = fig1.add_subplot(111)
+        ax1.plot(loss, label='Loss')
+        ax1.set_ylabel('Loss')
+        ax1.set_xlabel('Epoch')
+        ax1.legend(loc='upper left')
+        fig2 = plt.figure()
+        ax2 = fig2.add_subplot(111)
+        ax2.plot(np.array(acc) * 100, label='Accuracy')
+        ax2.set_ylabel('Accuracy')
+        ax2.set_xlabel('Epoch')
+        ax2.legend(loc='upper left')
+        return fig1, fig2
+
     def evaluate(self, test_loader, progress: Progress = None, display_window=10, same_mode=True, regression_task=False, regression_allow_diff=5):
         if progress is None:
             progress = Progress()
@@ -135,6 +152,8 @@ class Trainer:
 
 class NeuralNetworkScheduler:
     def __init__(self, dataset_dir, device, config: TrainingConfigure, num_classes=2, data_generator: DataGenerator = None, on_new_task=None, on_update=None, on_remove=None):
+        self.test_loader = None
+        self.train_loader = None
         self.dataset_dir = dataset_dir
         self.data_generator = data_generator
         self.config = config
@@ -172,6 +191,43 @@ class NeuralNetworkScheduler:
         train_dataset, test_dataset = torch.utils.data.random_split(self.dataset, [int(len(self.dataset) * split_ratio), len(self.dataset) - int(len(self.dataset) * split_ratio)])
         train_loader = torch.utils.data.DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
         test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+        self.train_loader = train_loader
+        self.test_loader = test_loader
         logger.info("Start training...")
         with CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove) as progress:
             yield from self.trainner.train(train_loader, test_loader, epochs, progress, display_window=display_window, regression_task=regression_task, regression_allow_diff=regression_allow_diff)
+
+    def input_features_analysis(self, limit=10):
+        self.model.train()
+        ig = IntegratedGradients(self.model)
+        attributions = []
+        for i, (x, y) in enumerate(self.test_loader):
+            if i > limit:
+                break
+            x, y = x.to(self.device), y.to(self.device)
+            # target = torch.argmax(y, dim=1)
+            attributions += ig.attribute(x, target=y)
+        # take mean of all attributions
+        attributions = torch.stack(attributions).mean(dim=0)
+        attributions = torch.softmax(attributions, dim=0)
+        return attributions.detach().cpu().numpy()
+
+    def input_features_analysis_with_target(self, limit, labels, targets):
+        self.model.train()
+        ig = IntegratedGradients(self.model)
+        attributions = {target: [] for target in targets}
+        for i, (x, y) in enumerate(self.test_loader):
+            if i > limit:
+                break
+            x, y = x.to(self.device), y.to(self.device)
+            # target = torch.argmax(y, dim=1)
+            for target in targets:
+                idx = labels.index(target)
+                y = torch.tensor([idx] * len(y)).to(self.device)
+                attributions[target] += ig.attribute(x, target=y)
+        # take mean of all attributions
+        for att, value in attributions.items():
+            value = torch.stack(value).mean(dim=0)
+            value = torch.softmax(value, dim=0)
+            attributions[att] = value.detach().cpu().numpy()
+        return attributions

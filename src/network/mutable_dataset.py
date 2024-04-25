@@ -46,7 +46,10 @@ class DataGenerator:
                 df[col] = df[col].apply(data_type_mapping[col])
                 continue
             if pd.api.types.is_string_dtype(dtype):
-                df[col] = df[col].astype('category').cat.codes
+                labels = df[col].unique()
+                labels.sort()
+                cat_type = pd.CategoricalDtype(categories=labels, ordered=True)
+                df[col] = df[col].astype(cat_type).cat.codes
             if pd.api.types.is_numeric_dtype(dtype):
                 if norm:
                     df[col] = (df[col] - np.min(df[col])) / (np.max(df[col]) - np.min(df[col]))
