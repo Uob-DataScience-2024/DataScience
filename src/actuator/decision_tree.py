@@ -38,6 +38,8 @@ class Trainer:
     def train(self, X, Y, split_ratio=0.2):
         logger.info("Splitting data...")
         X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=split_ratio)
+        sample = Y_test.tolist()
+        sample = list(set(sample))
         scaler = MinMaxScaler()
         X_train = scaler.fit_transform(X_train)
         X_test = scaler.transform(X_test)
@@ -45,7 +47,9 @@ class Trainer:
         self.model.fit(X_train, Y_train)
         logger.info("Training finished")
         Y_pred = self.model.predict(X_test)
-        return accuracy_score(Y_test, Y_pred)
+        acc = accuracy_score(Y_test, Y_pred)
+        logger.info(f"Accuracy: {acc * 100:.2f}%")
+        return acc
 
     def predict(self, X):
         return self.model.predict(X)

@@ -336,3 +336,38 @@ def draw_player_info_df(block_bottom_margin, block_left_margin, block_right_marg
         cv2.putText(image, text_p1, (x, y), cv2.FONT_HERSHEY_SIMPLEX, font_size, jerseyNumberColor, thickness)
         cv2.putText(image, text_p2, (x + text_width_p1, y), cv2.FONT_HERSHEY_SIMPLEX, font_size, text_color, thickness)
         current_x += block_width
+
+
+def draw_play_info_by_template(image: np.ndarray, df: pd.DataFrame, dt: datetime,
+                               start_y: int, font_size=1.5, thickness=2, jerseyNumberColor=(13, 148, 136), text_color=(219, 63, 41),
+                               target_columns=[{'col': 'passResult', 'template': '{key}: {value}'}]):
+    h, w = image.shape[:2]
+    data = df[df['time'] == dt]
+
+    block_top_margin = 0.005
+    block_bottom_margin = 0.005
+    block_left_margin = 0.005
+    block_right_margin = 0.005
+    x_base = 0.025 * w
+    y_base = start_y + (h - start_y) * 0.3
+
+    current_x = 0
+    current_y = 0
+    for info in target_columns:
+        col = info['col']
+        template = info['template']
+        sub_data = data[col]
+        sub_data = sub_data.unique()
+        value = sub_data[0]
+        text = template.format(key=col, value=value)
+        (text_width, text_height), baseline = cv2.getTextSize(text, cv2.FONT_HERSHEY_SIMPLEX, font_size, 2)
+        block_width = text_width + block_left_margin * w + block_right_margin * w
+        block_height = text_height + block_top_margin * h + block_bottom_margin * h
+        if x_base + current_x + block_width > w:
+            current_x = 0
+            current_y += block_height
+        x = int(x_base + current_x + block_left_margin * w)
+        y = int(y_base + current_y + block_top_margin * h + text_height / 2)
+        cv2.putText(image, text, (x, y), cv2.FONT_HERSHEY_SIMPLEX, font_size, jerseyNumberColor, thickness)
+        current_x += block_width
+

@@ -27,7 +27,7 @@ class DataGenerator:
         self.player = player
         self.merge = merge
 
-    def generate_dataset(self, x_columns, y_column, data_type='numpy', data_type_mapping=None, norm=False, player_needed=False, game_needed=False):
+    def generate_dataset(self, x_columns, y_column, data_type='numpy', data_type_mapping=None, norm=False, player_needed=False, game_needed=False, dropna_y=True):
         if data_type_mapping is None:
             data_type_mapping = {}
         df = self.merge.game.copy()
@@ -52,6 +52,8 @@ class DataGenerator:
                     df[col] = (df[col] - np.min(df[col])) / (np.max(df[col]) - np.min(df[col]))
 
         df = df.fillna(method='ffill')
+        if dropna_y:
+            df = df.dropna(subset=[y_column])
         X = df[x_columns]
         Y = df[y_column]
         Y.dropna()
