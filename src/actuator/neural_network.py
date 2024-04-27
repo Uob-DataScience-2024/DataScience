@@ -5,6 +5,7 @@ from loguru import logger
 from torch import nn
 from rich.progress import Progress
 import torch.utils.data
+from torch.utils.data import Subset, DataLoader
 from torch.utils.tensorboard import SummaryWriter
 
 from utils.progress import CallbackProgress
@@ -104,6 +105,8 @@ class Trainer:
             progress.update(progress_epoch, advance=1, description=f"Epoch {epoch + 1}/{epochs}, " +
                                                                    f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy * 100:.4f}%, " +
                                                                    f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy * 100:.4f}%")
+            self.final_loss = test_loss
+            self.final_accuracy = test_accuracy
             loss_epoch.append(test_loss)
             accuracy_epoch.append(test_accuracy)
             self.writer.add_scalar("Training/Epoch Loss", train_loss, epoch)
@@ -164,6 +167,7 @@ class NeuralNetworkScheduler:
         self.criterion = config.training_hyperparameters.criterion()
         self.dataset = None
         self.data_mapping_log = None
+        self.data_type_mapping_inverse = None
         self.trainner = Trainer(self.model, self.optimizer, self.criterion, device=device)
         self.ready = False
         self.device = device
@@ -181,7 +185,8 @@ class NeuralNetworkScheduler:
         # TODO: add stored data_type_mapping
         columns_x = self.config.input_features
         column_y = self.config.target_feature
-        self.dataset, self.data_mapping_log = self.data_generator.generate_dataset(columns_x, column_y, data_type='torch', player_needed=player_needed, game_needed=game_needed, norm=norm, with_mapping_log=True)
+        self.dataset, self.data_mapping_log, self.data_type_mapping_inverse = self.data_generator.generate_dataset(columns_x, column_y, data_type='torch', player_needed=player_needed,
+                                                                                                                   game_needed=game_needed, norm=norm, with_mapping_log=True)
         logger.info("Dataset ready")
         self.ready = True
 
@@ -197,6 +202,49 @@ class NeuralNetworkScheduler:
         logger.info("Start training...")
         with CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove) as progress:
             yield from self.trainner.train(train_loader, test_loader, epochs, progress, display_window=display_window, regression_task=regression_task, regression_allow_diff=regression_allow_diff)
+
+    def train_k_fold(self, epochs, batch_size, split_ratio, display_window=10, k_folds=5, regression_task=False, regression_allow_diff=5):
+        if not self.ready:
+            raise ValueError("Dataset not ready")
+        logger.info("Splitting dataset...")
+        splits = self.k_fold_cross_val_split(self.dataset, k_folds=k_folds)
+        logger.info("Start training...")
+        with CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove) as progress:
+            task_k_fold = progress.add_task(f"K-Fold Cross Validation", total=k_folds)
+            for fold in range(k_folds):
+                train_idx = [idx for i, sublist in enumerate(splits) if i != fold for idx in sublist]
+                test_idx = splits[fold]
+
+                train_subsampler = Subset(self.dataset, train_idx)
+                test_subsampler = Subset(self.dataset, test_idx)
+
+                self.train_loader = DataLoader(train_subsampler, batch_size=10, shuffle=False)
+                self.test_loader = DataLoader(test_subsampler, batch_size=10, shuffle=False)
+                yield from self.trainner.train(self.train_loader, self.test_loader, epochs, progress, display_window=display_window, regression_task=regression_task,
+                                               regression_allow_diff=regression_allow_diff)
+                progress.update(task_k_fold, advance=1)
+
+    @staticmethod
+    def k_fold_cross_val_split(dataset, k_folds=5, shuffle=True):
+        dataset_size = len(dataset)
+        indices = list(range(dataset_size))
+
+        if shuffle:
+            torch.manual_seed(42)
+            indices = torch.randperm(dataset_size).tolist()
+
+        fold_sizes = [dataset_size // k_folds for _ in range(k_folds)]
+        for i in range(dataset_size % k_folds):
+            fold_sizes[i] += 1
+
+        current = 0
+        splits = []
+        for fold_size in fold_sizes:
+            start, stop = current, current + fold_size
+            splits.append(indices[start:stop])
+            current = stop
+
+        return splits
 
     def predict(self, x):
         self.model.eval()
