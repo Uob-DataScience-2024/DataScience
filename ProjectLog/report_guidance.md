@@ -299,13 +299,21 @@ Through systematic large-scale comparative experiments, we found that the model 
 
 So, in the following chapter 4, We will attempt another direction: non-sequential training(which is successful).
 
-# Chapter 4 Data Modelling
+### 3.2.8 Summary
 
-To be completed in few hours
+A simple description of the work done in Chapter 3. 
+
+Then explain that after restructuring the Data Loader (i.e. the second version of the Data Loader in 2.4 Reusable Data Loader: Automated Data Preprocessing), we discovered the reason for the poor performance of time series training, which was the pollution caused by N/A values in the time series. Although the data is sequential, this dataset is not suitable for sequential training. At the same time, we found in the experiments that the GameClock data can achieve good results using non-sequential training models. We will discuss this in detail in the next Chapter 4.
+
+# Chapter 4 Data Modelling
 
 ## 4.1 Supervised Learning
 
+## 4.x Visualisation
+
 ## 4.x Validation Scheme
+
+# Additional Content and Explanations(for subsequent chapters)
 
 
 
