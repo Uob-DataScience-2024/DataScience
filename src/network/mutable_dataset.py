@@ -39,9 +39,12 @@ class DataGenerator:
         self.player = player
         self.merge = merge
 
-    def generate_dataset(self, x_columns, y_column, data_type='numpy', data_type_mapping=None, norm=False, player_needed=False, game_needed=False, dropna_y=True, with_mapping_log=False):
+    def generate_dataset(self, x_columns, y_column, data_type='numpy', data_type_mapping=None, data_type_mapping_inverse=None, norm=False, player_needed=False, game_needed=False, dropna_y=True,
+                         with_mapping_log=False):
         if data_type_mapping is None:
             data_type_mapping = {'gameClock': convertTimeToNumerical, 'height': heightInches}
+        if data_type_mapping_inverse is None:
+            data_type_mapping_inverse = {'height': lambda x: f"{int(x // 12)}-{int(x % 12)}", 'gameClock': lambda x: f"{int(x // 60)}:{int(x % 60)}"}
         df = self.merge.game.copy()
         if player_needed:
             df = df.merge(self.merge.player, on='nflId', how='left')
@@ -54,7 +57,7 @@ class DataGenerator:
         mapping_log = {}
 
         df = df.fillna(method='ffill')
-        for col, dtype in {c: cols_type[c] for c in x_columns}.items():
+        for col, dtype in {c: cols_type[c] for c in preprocess_cols}.items():
             if col in data_type_mapping:
                 df[col] = df[col].apply(data_type_mapping[col])
                 mapping_log[col] = {'type': 'function', 'mapping': data_type_mapping[col]}
@@ -66,7 +69,7 @@ class DataGenerator:
                 df[col] = df[col].astype(cat_type).cat.codes
                 mapping_log[col] = {'type': 'category', 'mapping': {i: label for i, label in enumerate(labels)}}
             if pd.api.types.is_numeric_dtype(dtype):
-                if norm:
+                if norm and col != y_column:
                     mapping_log[col] = {'type': 'numeric', 'mapping': {'min': np.min(df[col]), 'max': np.max(df[col])}}
                     df[col] = (df[col] - np.min(df[col])) / (np.max(df[col]) - np.min(df[col]))
 
@@ -77,10 +80,11 @@ class DataGenerator:
         Y = df[y_column]
         Y.dropna()
         if data_type == 'numpy':
-            return (X.to_numpy(), Y.to_numpy()) if not with_mapping_log else (X.to_numpy(), Y.to_numpy(), mapping_log)
+            return (X.to_numpy(), Y.to_numpy()) if not with_mapping_log else (X.to_numpy(), Y.to_numpy(), mapping_log, data_type_mapping_inverse)
         elif data_type == 'pandas':
-            return (X, Y) if not with_mapping_log else (X, Y, mapping_log)
+            return (X, Y) if not with_mapping_log else (X, Y, mapping_log, data_type_mapping_inverse)
         elif data_type == 'torch':
-            return SimpleDataset(X.values, Y.astype('category').cat.codes.to_numpy()) if not with_mapping_log else (SimpleDataset(X.values, Y.astype('category').cat.codes.to_numpy()), mapping_log)
+            return SimpleDataset(X.values, Y.astype('category').cat.codes.to_numpy()) if not with_mapping_log else (
+            SimpleDataset(X.values, Y.astype('category').cat.codes.to_numpy()), mapping_log, data_type_mapping_inverse)
         else:
             raise ValueError(f"Data type {data_type} not supported")

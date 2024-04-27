@@ -76,20 +76,28 @@ def call_feature_analysis_target(input_cols, labels, targets, limit=10):
     return df, [draw_heat_map_for_line(value, key) for key, value in results.items()]
 
 
-def get_data(index, input_cols):
+def value_remapping(d, c):
+    if c in scheduler.data_mapping_log:
+        if scheduler.data_mapping_log[c]['type'] == 'category':
+            d = scheduler.data_mapping_log[c]['mapping'][d]
+        if scheduler.data_mapping_log[c]['type'] == 'numeric':
+            d = d * (scheduler.data_mapping_log[c]['mapping']['max'] - scheduler.data_mapping_log[c]['mapping']['min']) + scheduler.data_mapping_log[c]['mapping']['min']
+        if scheduler.data_mapping_log[c]['type'] == 'function':
+            d = scheduler.data_type_mapping_inverse[c](d)
+    return d
+
+
+def get_data(index, input_cols, y_col):
     x, y = scheduler.dataset[index]
     x = x.numpy().tolist()
     x_new = []
     for d, c in zip(x, input_cols):
-        if c in scheduler.data_mapping_log:
-            if scheduler.data_mapping_log[c]['type'] == 'category':
-                d = scheduler.data_mapping_log[c]['mapping'][d]
-            if scheduler.data_mapping_log[c]['type'] == 'numeric':
-                d = d * (scheduler.data_mapping_log[c]['mapping']['max'] - scheduler.data_mapping_log[c]['mapping']['min']) + scheduler.data_mapping_log[c]['mapping']['min']
+        d = value_remapping(d, c)
         x_new.append(d)
 
+    y = value_remapping(y.item(), y_col)
     df = pd.DataFrame([x_new], columns=input_cols)
-    return df
+    return df, y
 
 
 def predict_nn(index, labels):
@@ -203,7 +211,8 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
             index_of_data = gr.Number(label="Index of Data", value=0, minimum=0)
             btn_load_detail = gr.Button("Load Detail", variant="primary")
             input_preview = gr.DataFrame(label="Input Preview")
-            btn_load_detail.click(fn=get_data, inputs=[index_of_data, x_cols], outputs=[input_preview])
+            correct_result = gr.Label(label="Correct Result")
+            btn_load_detail.click(fn=get_data, inputs=[index_of_data, x_cols, y_col], outputs=[input_preview, correct_result])
             result_confidence = gr.DataFrame(label="Result Confidence")
             btn_predict = gr.Button("Predict", variant="primary")
             btn_predict.click(fn=lambda *x: predict_nn(*x[:1], labels=sorted(full_col[x[1]].astype('category').unique())),
