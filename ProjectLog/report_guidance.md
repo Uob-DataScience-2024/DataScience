@@ -144,9 +144,160 @@ The goals of time series analysis extend beyond forecasting future data points. 
 
 Provide a brief introduction to the content covered in the subheadings (what did we do?).
 
-### 3.2.1 Time Series Labeling Experiment
+### 3.2.1 Neural Network Model 
 
-### 3.2.2 Time Series Forecasting Experiment
+#### 3.2.1.1 Long Short-Term Memory (LSTM)
+
+can refer to:
+
+LSTM stands for Long Short-Term Memory. It is a special kind of recurrent neural network (RNN) architecture.
+
+RNNs are good at handling sequential data, but suffer from the vanishing/exploding gradient problem, making it difficult to learn long-term dependencies. LSTMs address this issue by introducing a gating mechanism and memory cells.
+
+The key innovations in LSTMs include:
+
+1. Forget Gate - Controls what information to discard from the previous cell state.
+
+2. Input Gate - Controls how the current input and previous cell state are combined. 
+
+3. Output Gate - Controls what gets output based on the cell state.
+
+4. Memory Cell - Similar to the hidden state in a regular RNN, but allows information to be remembered for long periods.
+
+With this carefully designed gating mechanism, LSTMs are much better at capturing long-term dependencies in sequential data. They have shown outstanding performance in natural language processing, speech recognition, time series forecasting, and other sequence tasks. LSTM is one of the mainstream neural network architectures for processing sequential data.
+
+#### 3.2.1.2 Neural Network Model: Gated Recurrent Unit (GRU)
+
+can refer to: 
+
+GRU stands for Gated Recurrent Unit. It is another type of recurrent neural network, introduced as a simpler alternative to the LSTM architecture.
+
+Like LSTMs, GRUs are designed to solve the vanishing gradient problem that standard RNNs face when learning long-term dependencies. However, GRUs have a simpler structure with fewer gates.
+
+The key components of a GRU are:
+
+1. Reset Gate - Decides how much of the previous memory to keep around.
+2. Update Gate - Determines what information from the current input and previous state to use to compute the new state.
+
+The reset and update gates in GRUs control the flow of information similar to the forget, input and output gates in LSTMs. However, GRUs have fewer tensor operations, making them more efficient to compute and faster to train compared to LSTMs.
+
+While slightly less powerful than LSTMs in some cases, GRUs strike a good balance between model complexity and performance. They have been successfully applied to tasks like language modeling, speech recognition, and time series forecasting.
+
+Overall, GRUs provide a simpler and more efficient gating mechanism compared to LSTMs for handling long-term dependencies in sequential data, while still offering better performance than standard RNNs.
+
+#### 3.2.1.3 Transformer
+
+For the neural network models or machine learning models that we used in this project, you can find some literature and directly use their explanations or diagrams of the model architectures. That way, more citations are included in report.
+
+can refer to:
+A Transformer is a type of neural network model designed for processing sequential data. It was originally introduced by the Google Brain team in 2017 in the paper "Attention Is All You Need", primarily for natural language processing (NLP) tasks.
+
+Unlike RNNs, LSTMs, and GRUs that rely on recurrent structures to capture long-range dependencies in sequences, Transformers are entirely based on an attention mechanism to model the dependencies between input and output sequences.
+
+The main components of a Transformer include:
+
+1. Encoder - Processes the input sequence and computes a series of vectors to represent it.
+2. Decoder - Receives the output of the encoder and generates the final target sequence.
+3. Multi-Head Attention - Captures dependencies across different representational subspaces. 
+4. Positional Encoding - Since Transformers have no recurrence or convolution, positional encodings are added to inject sequence order information.
+
+Transformers use self-attention layers to directly model dependencies between any two positions, avoiding the path length constraints of RNNs and better handling long-range dependencies. They have shown outstanding performance on many NLP tasks such as machine translation, text generation, reading comprehension.
+
+The introduction of Transformers has greatly advanced the field of NLP, and they have also achieved significant success in computer vision, speech recognition, and other domains. Well-known language models like BERT and GPT are variants built upon the Transformer architecture. Overall, Transformers represent a novel neural network architecture for sequence modeling.
+
+### 3.2.3 Time Series Labeling Experiment
+
+Based on the details, write the content with the assistance of AIGC. For example, regarding the experimental conclusion where we mentioned that due to the characteristics of the Transformer model, it may not be suitable for the current dataset, and therefore performed worse than the LSTM/GRU model. In this case, you can consult AI tools to understand the differences between these two model classes and in what scenarios the Transformer may underperform compared to LSTM/GRU models. This allows you to expand the analysis on this point.
+
+you could ask: What are the key differences between Transformer and LSTM/GRU models? In what situations might Transformers underperform compared to LSTM/GRU for sequence modeling tasks?
+
+it may answer: For example, it may highlight that Transformers excel at capturing long-range dependencies but struggle with sequential tasks that heavily rely on retaining state information or handling very long sequences. Conversely, LSTM/GRU models, with their gating mechanisms and memory cells, may be better suited for tasks where maintaining state over time is crucial.
+
+Same to other section, you can use this approach to help you guys complete the writing.
+
+Details:
+
+In the initial stage of our technical approach, we first chose to experiment with LSTM/GRU neural networks. The experimental dataset included trackingdata as the input features and pffblocktype as the target label feature. For this sequence labeling task, we conducted a series of experiments:
+
+The first experiment showed that the model achieved an accuracy of 80% on the test set. Through further tuning of hyperparameters and model architecture, we ultimately attained 94% accuracy on the test set. Subsequently, we attempted to segment the input data sequences. The experimental results indicated that this operation did not adversely affect the model's accuracy but did accelerate the training process.
+
+Additionally, we explored the performance of the Transformer model on this task, with the following experimental overview:
+- Based on the existing LSTM/GRU model, we implemented the Transformer model architecture to test its performance.
+- The experimental results showed that the Transformer model performed inferior to the LSTM/GRU model.
+- Experimental analysis and conclusions:
+   1) During training, the Transformer model exhibited a slower convergence rate, and its accuracy improvement was relatively gradual.
+   2) Due to the architectural characteristics of the Transformer model, it may not be well-suited to the current dataset features, thus underperforming compared to the LSTM/GRU model.
+
+Through this series of experimental explorations, we ultimately determined to adopt the LSTM/GRU neural network model for sequence labeling task modeling.
+
+### 3.2.4 Time Series Forecasting Experiment
+
+Details:
+
+We conducted some experiments on win-rate models:
+
+- Experiment Overview: Implemented a model to predict the winner of a game.
+- Experimental Results: Failed
+- Experimental Conclusions:
+  - The experiment attempted to determine whether the home team won a game based on the 'preSnapHomeScore' and 'preSnapVisitorScore' columns in the playdata. However, it became evident that training a sequence classification model on this data was unsuccessful.
+  - To rule out potential design flaws in the sequence classification model, we tested an alternative approach where the sequence labeling model was tasked with predicting the home team's score. This attempt also failed, despite incorporating additional information from other pff data.
+  - We can conclude that the 'preSnapHomeScore' and 'preSnapVisitorScore' columns lack a discernible, effective association with the main dataset, and there are no features that the neural network can effectively learn from these data points.
+
+### 3.2.5 Interim Summary
+
+The above two preliminary data exploration experiments were unsuccessful. However, we did not entirely lose hope and planned to conduct further exploration by performing large-scale experiments on the entire dataset. To avoid redundant work, we developed a method to replace training parameters and implemented such experiments (covered in the next subsection).
+
+you can write this part like this (Don't copy it):
+
+The initial attempts at developing win-rate prediction models based on the 'preSnapHomeScore' and 'preSnapVisitorScore' columns from the playdata were unsuccessful. Through these exploratory experiments, we concluded that these specific features lack a discernible association with the main dataset, failing to provide effective learning signals for the neural network models.
+
+Despite the setbacks, we remained optimistic about uncovering valuable insights from the data through further exploration. To facilitate more comprehensive experimentation without redundant efforts, we developed a methodology to replace training parameters systematically. This approach would enable us to conduct large-scale experiments across the entirety of the dataset, potentially revealing previously overlooked patterns or relationships.
+
+The next stage of our research involved implementing these large-scale experiments with varying parameter configurations, which will be detailed in the subsequent subsection. While the initial explorations did not yield the desired results, we recognized the importance of persevering and thoroughly investigating the data from multiple angles to maximize the chances of successful model development.
+
+### 3.2.6 Implementation of Generalized Framework
+
+Details:
+
+Implementation of Neural Network Models
+
+To facilitate extensive data exploration and model experimentation, we implemented a generalized neural network model framework designed to support flexible input/output configurations and parameter adjustments. The specific implementation details include:
+
+Model Architectures
+- We implemented sequence labeling neural networks based on LSTM and GRU architectures for modeling and predicting sequential data. These model architectures are widely employed in time series data processing tasks.
+- A universal training configuration system was constructed, enabling flexible specification of model hyperparameters, optimizer settings, training iteration counts, and other critical training details.
+
+Configuration Flexibility
+- A configurable input/output feature selection mechanism was designed, allowing arbitrary features from the NFL dataset to be specified as model inputs and output labels, enabling a high degree of freedom in experimental setups.
+- This capability facilitated the application of the control variable method, systematically adjusting input/output feature combinations and conducting large-scale batch experiments to comprehensively explore potential patterns and relationships within the data.
+
+Experiment Templates
+- Generalized experiment configuration templates were built, encompassing model architecture selection, feature engineering, and hyperparameter settings as core configuration elements.
+- These templates laid the foundation for subsequent large-scale experiments, ensuring consistency and reproducibility throughout the experimental process.
+
+By implementing the above components, we established a flexible and extensible neural network model framework, well-prepared for conducting a comprehensive exploratory study on the NFL dataset.
+
+### 3.2.7 Large-Scale Experiments Facilitated by the Generalized Framework
+
+Details:
+
+#### Experimental Overview
+To comprehensively explore potential patterns and relationships within the NFL dataset, we conducted large-scale control variable experiments based on the previously implemented generalized GRU sequence labeling neural network model framework. The experiments focused on modeling and predicting multiple target features.
+
+#### Experimental Setup
+- The input feature set included passResult.json, personnelD.json, personnelO.json, pff_passCoverage.json, pff_passCoverageType.json, pff_playAction.json, pff_positionLinedUp.json, pff_role.json, playResult.json, and prePenaltyPlayResult.json.
+- The models took tracking data as the base input and performed sequence modeling and prediction on the aforementioned features.
+- The experiments employed a control variable approach, systematically adjusting the target features to evaluate the model's predictive performance across different features.
+
+#### Experimental Results
+- The model achieved its best performance in predicting the pff_role feature, reaching an accuracy of 76% after 5 training epochs, with an expected accuracy exceeding 94% after further training.
+- For the pff_playAction feature, the model attained an accuracy of 63% after 5 epochs, with no observable improvement, necessitating further model optimization.
+- For most other features, the model based on tracking data failed to learn effective prediction patterns.
+
+#### Experimental Summary
+Through systematic large-scale comparative experiments, we found that the model performed relatively well in predicting the pff_role and pff_playAction features, although there is room for improvement. However, for most other features, the current data did not yield satisfactory predictive performance, suggesting potential areas for improvement in data quality and feature engineering.
+
+So, in the following chapter 4, We will attempt another direction: non-sequential training(which is successful).
 
 # Chapter 4 Data Modelling
 
