@@ -1,13 +1,18 @@
 import os
 
+import PIL
 import gradio as gr
+import numpy as np
 import pandas as pd
+from PIL import Image
 
 from actuator.decision_tree import DecisionTreeConfig, DecisionTreeScheduler
 from actuator.neural_network import NeuralNetworkScheduler
 from network.mutable_dataset import DataGenerator
 from ui.tools import ProcessManager, load_config, save_config
 from utils import TrainingConfigure
+import matplotlib.pyplot as plt
+import io
 
 scheduler: NeuralNetworkScheduler = None
 
@@ -37,16 +42,27 @@ def train_nn(
         yield text, *image
 
 
+def draw_heat_map_for_line(array, title):
+    fig, ax = plt.subplots(figsize=(10, 10))
+    ax.imshow(array[np.newaxis, :], cmap='hot', interpolation='nearest')
+    ax.set_title(title)
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    return Image.open(buf)
+
+
 def call_feature_analysis(input_cols, limit=10):
     result = scheduler.input_features_analysis(limit)
     result *= 100
     df = pd.DataFrame([list(map(lambda x: f"{x:.3f}%", result.tolist()))], columns=input_cols)
-    return df
+    return df, [draw_heat_map_for_line(result, "Feature Importance")]
 
 
 def call_feature_analysis_target(input_cols, labels, targets, limit=10):
     if targets is None or len(targets) == 0:
         return call_feature_analysis(input_cols, limit)
+    labels.sort()
     results = scheduler.input_features_analysis_with_target(limit, labels, targets)
     data = []
     index = []
@@ -57,7 +73,7 @@ def call_feature_analysis_target(input_cols, labels, targets, limit=10):
     # copy index to columns
     df['index'] = df.index
     df = df[['index'] + input_cols]
-    return df
+    return df, [draw_heat_map_for_line(value, key) for key, value in results.items()]
 
 
 def train_rf(
@@ -147,10 +163,11 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
             labels_to_test = gr.CheckboxGroup(label="Labels to Test", choices=sorted(full_col['passResult'].astype('category').unique()))
             btn_analysis = gr.Button("Feature Analysis", variant="primary")
             feature_analysis = gr.DataFrame(label="Feature Analysis")
+            heat_map = gr.Gallery(label="Heat Map")
             # btn_analysis.click(fn=call_feature_analysis, inputs=[x_cols, gradient_test_limit], outputs=[feature_analysis])
             btn_analysis.click(fn=lambda *x: call_feature_analysis_target(x[0], sorted(full_col[x[1]].astype('category').unique()), x[2], x[3]),
                                inputs=[x_cols, y_col, labels_to_test, gradient_test_limit],
-                               outputs=[feature_analysis])
+                               outputs=[feature_analysis, heat_map])
             y_col.change(lambda x: gr.CheckboxGroup(choices=sorted(full_col[x].astype('category').unique()), value=[]), inputs=[y_col], outputs=[labels_to_test])
 
 
