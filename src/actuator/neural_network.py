@@ -163,6 +163,7 @@ class NeuralNetworkScheduler:
         # self.scheduler = config.training_hyperparameters.scheduler(self.optimizer, **config.training_hyperparameters.scheduler_hyperparameters)
         self.criterion = config.training_hyperparameters.criterion()
         self.dataset = None
+        self.data_mapping_log = None
         self.trainner = Trainer(self.model, self.optimizer, self.criterion, device=device)
         self.ready = False
         self.device = device
@@ -180,7 +181,7 @@ class NeuralNetworkScheduler:
         # TODO: add stored data_type_mapping
         columns_x = self.config.input_features
         column_y = self.config.target_feature
-        self.dataset = self.data_generator.generate_dataset(columns_x, column_y, data_type='torch', player_needed=player_needed, game_needed=game_needed, norm=norm)
+        self.dataset, self.data_mapping_log = self.data_generator.generate_dataset(columns_x, column_y, data_type='torch', player_needed=player_needed, game_needed=game_needed, norm=norm, with_mapping_log=True)
         logger.info("Dataset ready")
         self.ready = True
 
@@ -196,6 +197,16 @@ class NeuralNetworkScheduler:
         logger.info("Start training...")
         with CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove) as progress:
             yield from self.trainner.train(train_loader, test_loader, epochs, progress, display_window=display_window, regression_task=regression_task, regression_allow_diff=regression_allow_diff)
+
+    def predict(self, x):
+        self.model.eval()
+        with torch.no_grad():
+            x = torch.tensor(x, dtype=torch.float32)
+            x = x.to(self.device)
+            # 对每个类别计算置信度:
+            y = self.model(x)
+            y = torch.softmax(y, dim=1)
+            return y.detach().cpu().numpy()
 
     def input_features_analysis(self, limit=10):
         self.model.train()

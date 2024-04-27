@@ -67,13 +67,39 @@ def call_feature_analysis_target(input_cols, labels, targets, limit=10):
     data = []
     index = []
     for key, value in results.items():
-        data.append(list(map(lambda x: f"{x * 100:.3f}%", value.tolist())))
+        data.append(list(map(lambda x: f"{x * 100:.2f}%", value.tolist())))
         index.append(key)
     df = pd.DataFrame(data, columns=input_cols, index=index)
     # copy index to columns
     df['index'] = df.index
     df = df[['index'] + input_cols]
     return df, [draw_heat_map_for_line(value, key) for key, value in results.items()]
+
+
+def get_data(index, input_cols):
+    x, y = scheduler.dataset[index]
+    x = x.numpy().tolist()
+    x_new = []
+    for d, c in zip(x, input_cols):
+        if c in scheduler.data_mapping_log:
+            if scheduler.data_mapping_log[c]['type'] == 'category':
+                d = scheduler.data_mapping_log[c]['mapping'][d]
+            if scheduler.data_mapping_log[c]['type'] == 'numeric':
+                d = d * (scheduler.data_mapping_log[c]['mapping']['max'] - scheduler.data_mapping_log[c]['mapping']['min']) + scheduler.data_mapping_log[c]['mapping']['min']
+        x_new.append(d)
+
+    df = pd.DataFrame([x_new], columns=input_cols)
+    return df
+
+
+def predict_nn(index, labels):
+    labels.sort()
+    x, y = scheduler.dataset[index]
+    x.to(scheduler.device)
+    result = scheduler.predict(x.unsqueeze(0))
+    result = list(map(lambda x: f"{x * 100:.3f}", result[0].tolist()))
+    df = pd.DataFrame([result], columns=labels)
+    return df
 
 
 def train_rf(
@@ -169,6 +195,19 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
                                inputs=[x_cols, y_col, labels_to_test, gradient_test_limit],
                                outputs=[feature_analysis, heat_map])
             y_col.change(lambda x: gr.CheckboxGroup(choices=sorted(full_col[x].astype('category').unique()), value=[]), inputs=[y_col], outputs=[labels_to_test])
+
+    with gr.Row():
+        with gr.Column():
+            gr.Markdown("### Model Prediction")
+
+            index_of_data = gr.Number(label="Index of Data", value=0, minimum=0)
+            btn_load_detail = gr.Button("Load Detail", variant="primary")
+            input_preview = gr.DataFrame(label="Input Preview")
+            btn_load_detail.click(fn=get_data, inputs=[index_of_data, x_cols], outputs=[input_preview])
+            result_confidence = gr.DataFrame(label="Result Confidence")
+            btn_predict = gr.Button("Predict", variant="primary")
+            btn_predict.click(fn=lambda *x: predict_nn(*x[:1], labels=sorted(full_col[x[1]].astype('category').unique())),
+                              inputs=[index_of_data, y_col], outputs=[result_confidence])
 
 
 def rf_ui(columns, data_generator, full_col, config_dir='configs/rf'):
