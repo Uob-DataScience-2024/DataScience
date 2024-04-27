@@ -51,7 +51,7 @@ def init_ui(tracking, pff, play, game, player, merge):
 
 def main():
     logger.info("Load init data...")
-    tracking, pff, play, game, player, merge = load_data('../data')
+    tracking, pff, play, game, player, merge = load_data('../test_data')
     logger.info("Data loaded")
 
     logger.info("Init UI")
