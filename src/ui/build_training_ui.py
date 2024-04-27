@@ -20,7 +20,7 @@ scheduler: NeuralNetworkScheduler = None
 def train_nn(
         x_cols: list, y_col: str, num_classes: int,
         model: str, optimizer: str, criterion: str,
-        epochs: int, batch_size: int, learning_rate: float, split_ratio: float,
+        epochs: int, batch_size: int, learning_rate: float, split_ratio: float, k_fold: int,
         gpu: bool = False, norm: bool = False, player_needed: bool = False, game_needed: bool = False,
         data_generator: DataGenerator = None):
     global scheduler
@@ -37,7 +37,7 @@ def train_nn(
     scheduler = NeuralNetworkScheduler('../data', 'cuda' if gpu else 'cpu', config, num_classes=num_classes, data_generator=data_generator,
                                        on_new_task=progress_manager.on_new_task, on_update=progress_manager.on_update, on_remove=progress_manager.on_remove)
     scheduler.prepare(norm=norm, player_needed=player_needed, game_needed=game_needed)
-    for i, (text, image) in enumerate(scheduler.train(epochs, batch_size, split_ratio)):
+    for i, (text, image) in enumerate(scheduler.train(epochs, batch_size, split_ratio) if k_fold == 0 else scheduler.train_k_fold(epochs, batch_size, split_ratio, k_folds=k_fold)):
         gr.Info(f"Training {i}/{epochs} epoch...[{(i + 1) / epochs * 100:.2f}%]")
         yield text, *image
 
@@ -88,26 +88,42 @@ def value_remapping(d, c):
 
 
 def get_data(index, input_cols, y_col):
-    x, y = scheduler.dataset[index]
-    x = x.numpy().tolist()
-    x_new = []
-    for d, c in zip(x, input_cols):
-        d = value_remapping(d, c)
-        x_new.append(d)
+    indexes = index.split(',')
+    indexes = list(map(int, indexes))
+    y_list = []
+    x_list = []
+    for i in indexes:
+        x, y = scheduler.dataset[i]
+        x = x.numpy().tolist()
+        x_new = []
+        for d, c in zip(x, input_cols):
+            d = value_remapping(d, c)
+            x_new.append(d)
 
-    y = value_remapping(y.item(), y_col)
-    df = pd.DataFrame([x_new], columns=input_cols)
-    return df, y
+        y = value_remapping(y.item(), y_col)
+        y_list.append(y)
+        x_list.append(x_new)
+    df = pd.DataFrame(x_list, columns=input_cols)
+    return df, ','.join(y_list)
 
 
 def predict_nn(index, labels):
+    indexes = index.split(',')
+    indexes = list(map(int, indexes))
     labels.sort()
-    x, y = scheduler.dataset[index]
-    x.to(scheduler.device)
-    result = scheduler.predict(x.unsqueeze(0))
-    result = list(map(lambda x: f"{x * 100:.3f}", result[0].tolist()))
-    df = pd.DataFrame([result], columns=labels)
-    return df
+    acc = 0
+    results = []
+    for i in indexes:
+        x, y = scheduler.dataset[i]
+        x.to(scheduler.device)
+        result = scheduler.predict(x.unsqueeze(0))
+        pred_index = result.argmax()
+        result = list(map(lambda x: f"{x * 100:.3f}", result[0].tolist()))
+        results.append(result)
+        if pred_index == y.item():
+            acc += 1
+    df = pd.DataFrame(results, columns=labels)
+    return df, f"Acc: {acc / len(indexes) * 100:.2f}%"
 
 
 def train_rf(
@@ -167,6 +183,7 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
                 batch_size = gr.Number(label="Batch Size", value=256)
                 learning_rate = gr.Slider(label="Learning Rate", minimum=0.0001, maximum=0.1, value=0.001)
                 split_ratio = gr.Slider(label="Split Ratio", minimum=0.6, maximum=0.9, value=0.8)
+                k_fold = gr.Slider(label="K-Fold", value=0, minimum=0, maximum=10, step=1, info="0 means disable k-fold")
 
     btn_load.click(fn=lambda x: load_config(x), inputs=[cached],
                    outputs=[x_cols, y_col, num_classes, model, optimizer, criterion, epochs, batch_size, learning_rate, split_ratio, gpu, norm, player_needed, game_needed])
@@ -186,7 +203,7 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
                 image_plot_acc = gr.Plot(label="Training info plot(accuracy)")
             # close progress for image plot only
             t_event = btn_train.click(fn=lambda *x: (yield from train_nn(*x, data_generator=data_generator)), show_progress="minimal",
-                                      inputs=[x_cols, y_col, num_classes, model, optimizer, criterion, epochs, batch_size, learning_rate, split_ratio, gpu, norm, player_needed, game_needed],
+                                      inputs=[x_cols, y_col, num_classes, model, optimizer, criterion, epochs, batch_size, learning_rate, split_ratio, k_fold, gpu, norm, player_needed, game_needed],
                                       outputs=[info, image_plot_loss, image_plot_acc])
             # btn_stop.click(fn=None, cancels=[t_event])
     with gr.Row():
@@ -208,15 +225,20 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
         with gr.Column():
             gr.Markdown("### Model Prediction")
 
-            index_of_data = gr.Number(label="Index of Data", value=0, minimum=0)
+            index_of_data = gr.Textbox(label="Index of Data", value="1, 1000, 10000, 114514, 1919810")
+            with gr.Row():
+                lmt_rand = gr.Number(label="Random Limit Numbers", value=10)
+                index_rand = gr.Button("Random Indexes")
+                index_rand.click(fn=lambda x: ', '.join(map(str, np.random.randint(0, len(scheduler.dataset), x).tolist())), inputs=[lmt_rand], outputs=[index_of_data])
             btn_load_detail = gr.Button("Load Detail", variant="primary")
             input_preview = gr.DataFrame(label="Input Preview")
             correct_result = gr.Label(label="Correct Result")
             btn_load_detail.click(fn=get_data, inputs=[index_of_data, x_cols, y_col], outputs=[input_preview, correct_result])
             result_confidence = gr.DataFrame(label="Result Confidence")
+            result_acc = gr.Label(label="Result Accuracy")
             btn_predict = gr.Button("Predict", variant="primary")
             btn_predict.click(fn=lambda *x: predict_nn(*x[:1], labels=sorted(full_col[x[1]].astype('category').unique())),
-                              inputs=[index_of_data, y_col], outputs=[result_confidence])
+                              inputs=[index_of_data, y_col], outputs=[result_confidence, result_acc])
 
 
 def rf_ui(columns, data_generator, full_col, config_dir='configs/rf'):

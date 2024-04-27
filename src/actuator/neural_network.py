@@ -22,6 +22,10 @@ class Trainer:
         self.criterion = criterion
         self.writer = SummaryWriter()
         self.device = device
+        self.test_loss_pool = []
+        self.test_accuracy_pool = []
+        self.train_loss_pool = []
+        self.train_accuracy_pool = []
 
     def train_step(self, x, y, same_mode=True, regression_task=False, regression_allow_diff=5):
         self.optimizer.zero_grad()
@@ -95,7 +99,7 @@ class Trainer:
         progress.remove_task(test_progress)
         return np.mean(total_loss), np.mean(total_accuracy)
 
-    def train(self, train_loader, test_loader, epochs, progress: Progress, display_window=10, same_mode=True, regression_task=False, regression_allow_diff=5):
+    def train(self, train_loader, test_loader, epochs, progress: Progress, display_window=10, same_mode=True, regression_task=False, regression_allow_diff=5, cross_val=False):
         progress_epoch = progress.add_task("[yellow]Epochs...", total=epochs)
         loss_epoch = []
         accuracy_epoch = []
@@ -105,17 +109,25 @@ class Trainer:
             progress.update(progress_epoch, advance=1, description=f"Epoch {epoch + 1}/{epochs}, " +
                                                                    f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy * 100:.4f}%, " +
                                                                    f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy * 100:.4f}%")
-            self.final_loss = test_loss
-            self.final_accuracy = test_accuracy
             loss_epoch.append(test_loss)
             accuracy_epoch.append(test_accuracy)
+            if cross_val:
+                self.train_loss_pool.append(train_loss)
+                self.train_accuracy_pool.append(train_accuracy)
+                self.test_loss_pool.append(test_loss)
+                self.test_accuracy_pool.append(test_accuracy)
+                train_loss = np.mean(self.train_loss_pool)
+                train_accuracy = np.mean(self.train_accuracy_pool)
+                test_loss = np.mean(self.test_loss_pool)
+                test_accuracy = np.mean(self.test_accuracy_pool)
             self.writer.add_scalar("Training/Epoch Loss", train_loss, epoch)
             self.writer.add_scalar("Training/Epoch Accuracy", train_accuracy * 100, epoch)
             self.writer.add_scalar("Testing/Epoch Loss", test_loss, epoch)
             self.writer.add_scalar("Testing/Epoch Accuracy", test_accuracy * 100, epoch)
             yield (f"Epoch {epoch + 1}/{epochs}, " +
                    f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy * 100:.4f}%, " +
-                   f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy * 100:.4f}%"), self.draw_plot_2(loss_epoch, accuracy_epoch)
+                   f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy * 100:.4f}%" + (
+                       "" if not cross_val else f"loss std: {np.std(test_loss)} | acc std: {np.std(test_accuracy)} [Cross Validation Enabled]")), self.draw_plot_2(loss_epoch, accuracy_epoch)
 
     @staticmethod
     def draw_plot(loss, acc):
@@ -160,7 +172,8 @@ class NeuralNetworkScheduler:
         self.dataset_dir = dataset_dir
         self.data_generator = data_generator
         self.config = config
-        self.model = config.model(**config.model_hyperparameters, num_classes=num_classes)
+        self.num_classes = num_classes
+        self.model = config.model(**config.model_hyperparameters, num_classes=self.num_classes)
         self.model = self.model.to(device)
         self.optimizer = config.training_hyperparameters.optimizer(self.model.parameters(), **config.training_hyperparameters.optimizer_hyperparameters)
         # self.scheduler = config.training_hyperparameters.scheduler(self.optimizer, **config.training_hyperparameters.scheduler_hyperparameters)
@@ -174,6 +187,13 @@ class NeuralNetworkScheduler:
         self.on_new_task = on_new_task
         self.on_update = on_update
         self.on_remove = on_remove
+
+    def re_init(self):
+        self.model = self.config.model(**self.config.model_hyperparameters, num_classes=self.num_classes)
+        self.model = self.model.to(self.device)
+        self.optimizer = self.config.training_hyperparameters.optimizer(self.model.parameters(), **self.config.training_hyperparameters.optimizer_hyperparameters)
+        self.trainner.model = self.model
+        self.trainner.optimizer = self.optimizer
 
     def prepare(self, norm=True, player_needed=False, game_needed=False):
         if self.data_generator is None:
@@ -218,10 +238,11 @@ class NeuralNetworkScheduler:
                 train_subsampler = Subset(self.dataset, train_idx)
                 test_subsampler = Subset(self.dataset, test_idx)
 
-                self.train_loader = DataLoader(train_subsampler, batch_size=10, shuffle=False)
-                self.test_loader = DataLoader(test_subsampler, batch_size=10, shuffle=False)
+                self.train_loader = DataLoader(train_subsampler, batch_size=batch_size, shuffle=False)
+                self.test_loader = DataLoader(test_subsampler, batch_size=batch_size, shuffle=False)
+                self.re_init()
                 yield from self.trainner.train(self.train_loader, self.test_loader, epochs, progress, display_window=display_window, regression_task=regression_task,
-                                               regression_allow_diff=regression_allow_diff)
+                                               regression_allow_diff=regression_allow_diff, cross_val=True)
                 progress.update(task_k_fold, advance=1)
 
     @staticmethod
