@@ -113,17 +113,28 @@ def predict_nn(index, labels):
     labels.sort()
     acc = 0
     results = []
+    figs = []
     for i in indexes:
         x, y = scheduler.dataset[i]
         x.to(scheduler.device)
         result = scheduler.predict(x.unsqueeze(0))
+        fig = plt.figure()
+        plt.bar(labels, (result[0] * 100).tolist())
         pred_index = result.argmax()
         result = list(map(lambda x: f"{x * 100:.3f}", result[0].tolist()))
         results.append(result)
         if pred_index == y.item():
             acc += 1
+        plt.title(f"Index: {i}" + (" Correct" if pred_index == y.item() else " Wrong"), color='#38CCB2' if pred_index == y.item() else '#B4424B')
+        plt.text(0.5, 1.1, f'Pred: {labels[pred_index]}, Label: {labels[y.item()]}', ha='center', va='bottom', transform=plt.gca().transAxes)
+        plt.xlabel("Labels")
+        plt.ylabel("Confidence(%)")
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        figs.append(Image.open(buf))
     df = pd.DataFrame(results, columns=labels)
-    return df, f"Acc: {acc / len(indexes) * 100:.2f}%"
+    return df, f"Acc: {acc / len(indexes) * 100:.2f}%", figs
 
 
 def train_rf(
@@ -237,8 +248,9 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
             result_confidence = gr.DataFrame(label="Result Confidence")
             result_acc = gr.Label(label="Result Accuracy")
             btn_predict = gr.Button("Predict", variant="primary")
+            confidence_figs = gr.Gallery(label="Confidence Figs")
             btn_predict.click(fn=lambda *x: predict_nn(*x[:1], labels=sorted(full_col[x[1]].astype('category').unique())),
-                              inputs=[index_of_data, y_col], outputs=[result_confidence, result_acc])
+                              inputs=[index_of_data, y_col], outputs=[result_confidence, result_acc, confidence_figs])
 
 
 def rf_ui(columns, data_generator, full_col, config_dir='configs/rf'):
