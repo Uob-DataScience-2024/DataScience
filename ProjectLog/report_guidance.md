@@ -309,11 +309,104 @@ Then explain that after restructuring the Data Loader (i.e. the second version o
 
 ## 4.1 Supervised Learning
 
-## 4.x Visualisation
+Here introduce the concept of Supervised Learning. And explain that this dataset is suitable for Supervised Learning.
+
+can refer to(This will help you guys understand the ML concept and DL concept):
+
+Machine learning is a relatively broad concept that encompasses deep learning and other traditional machine learning algorithms.
+
+After subtracting the deep learning subset from the machine learning set, what remains are the traditional machine learning algorithms, such as:
+
+1. Supervised learning algorithms:
+   - Decision trees
+   - Random forests
+   - Support vector machines
+   - Logistic regression
+   - Naive Bayes
+   - K-nearest neighbors
+
+2. Unsupervised learning algorithms:
+   - Clustering algorithms (K-Means, DBSCAN, etc.)
+   - Association rule mining
+   - Dimensionality reduction (PCA, SVD, etc.)
+
+3. Semi-supervised learning algorithms
+
+4. Reinforcement learning algorithms
+
+5. Ensemble learning algorithms (Bagging, Boosting, etc.)
+
+So, machine learning minus deep learning comprises all the traditional machine learning models and algorithms except deep neural networks. Deep learning is an important branch of machine learning, but it is not the entirety of machine learning.
+
+## 4.2 Traditional Machine Learning Model: Random Forest
+
+In this section, introduce the Random Forest Model.
+
+## 4.3 Deep Learning Model: Multilayer Perceptron (MLP)
+
+In this section, introduce the Multilayer Perceptron.
+
+## 4.4 Easy-to-use Application Building
+
+
+
+Can refer to:
+
+To enhance the usability and accessibility of our models and analysis results, we adopted a user interface (UI) building approach based on Gradio. Gradio is an open-source Python library for rapidly creating customized machine learning interfaces, enabling model visualization and human-computer interaction.
+
+In our application, the Gradio-built UI integrates neural network models, machine learning models, and visualization analysis tools. Users can select models, configure parameters, and view model training and prediction results in real-time through a user-friendly graphical interface. Additionally, the UI includes a visualization module for game data, presenting game statistics and analysis results intuitively with charts and videos.
+
+The UI design aims to maximize accessibility, allowing non-technical users to easily engage with data analysis and model application workflows.
+
+Beyond providing model training and deployment capabilities, our UI integrates a suite of visualization and diagnostic tools. Users can explore feature importance, model evaluation metrics, prediction results and more, gaining deeper model understanding and insights.
+
+By combining machine learning algorithms with an intuitive visualization interface, our application provides powerful analysis and decision support capabilities to a broad user base. Whether sports data analysts, coaches, players, or casual fans, users can leverage this application to uncover in-depth insights and make data-driven decisions.
 
 ## 4.x Validation Scheme
 
-# Additional Content and Explanations(for subsequent chapters)
+In this project, we employed two widely used validation techniques: hold-out validation and K-fold cross-validation.
+
+### 4.x.x Hold-out Validation
+
+In this section, introduce the validation we used: Hold-out Validation
+
+can refer to:
+
+Holdout Validation is a commonly used model evaluation technique that divides the dataset into two mutually exclusive subsets: the training set and the validation set (holdout or test set).
+
+The specific process is as follows:
+
+1) A validation set is first set aside from the entire dataset, typically 20%-30% of the total data. In this project, we used an 8:2 split for holdout validation.
+
+2) The remaining training set data is used to train the model.
+
+3) The performance metrics of the trained model, such as accuracy, precision, recall, etc., are evaluated on the reserved validation set.
+
+4) Based on the evaluation results on the validation set, the model's hyperparameters, feature engineering, etc. can be adjusted, and the training and evaluation process can be repeated.
+
+5) The model that performs best on the validation set is ultimately selected as the final model.
+
+The advantage of Holdout Validation is that it is simple in concept and easy to implement, and it is effective for larger datasets. However, the disadvantage is that the evaluation results are heavily influenced by the split of the validation set, resulting in a relatively high variance. To reduce the variance, K-fold cross-validation can be used.
+
+Overall, Holdout Validation is suitable for preliminary model evaluation and parameter tuning, but when selecting the final model and evaluating generalization ability, it should be combined with other techniques (such as cross-validation).
+
+### 4.x.x K-fold Cross Validation
+
+Here, introducing K-fold Cross Validation and stating that in this project, we can freely choose the value of K in the application.
+
+Can refer to:
+
+K-fold Cross Validation is a model evaluation technique that helps mitigate the high variance issue associated with holdout validation. It involves partitioning the dataset into K equal-sized subsets or folds. The model is then trained K times, with each fold serving as the validation set once, while the remaining K-1 folds are used for training. The performance metrics are averaged across all K iterations to provide a more reliable estimate of the model's generalization ability.
+
+In this project, our application allows users to freely select the value of K for K-fold Cross Validation. This flexibility enables users to experiment with different values of K and assess the impact on model performance and stability. Typically, values of K between 5 and 10 are commonly used, with 10-fold Cross Validation being a popular choice as it strikes a balance between computational cost and variance reduction. However, users can explore different K values based on their specific requirements, dataset size, and computational resources available.
+
+### 4.x.x Visualisation
+
+
+
+# Additional Content and Explanations(for subsequent chapters):
+
+# Results and Discussion Chapter Guidance.
 
 
 
