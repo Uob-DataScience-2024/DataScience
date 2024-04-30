@@ -30,7 +30,7 @@ logger.add(loguru_gradio_handler, level="DEBUG")
 server = None
 running = True
 exit_signal = False
-data_path = "../test_data"
+data_path = "../data"
 
 
 def on_reload(_data_path):
@@ -79,36 +79,29 @@ def init_ui(tracking, pff, play, game, player, merge):
     return block
 
 
-class UI:
-    def __init__(self, data_path, default_weeks=1):
-        self.block = None
-        self.data_path = data_path
-        self.default_weeks = default_weeks
-        tracking, pff, play, game, player, merge = self.load_data(data_path, default_weeks)
-        self.load_ui(tracking, pff, play, game, player, merge)
-
-    def load_data(self, data_path, default_weeks):
-        logger.info("Load init data...")
-        tracking, pff, play, game, player, merge = load_data(data_path, default_weeks)
-        logger.info("Data loaded")
-        return tracking, pff, play, game, player, merge
-
-    def load_ui(self, tracking, pff, play, game, player, merge):
-        logger.info("Init UI")
-        self.block = init_ui(tracking, pff, play, game, player, merge)
-
-    def reload_ui(self, data_path, default_weeks):
-        tracking, pff, play, game, player, merge = self.load_data(data_path, default_weeks)
-        self.block.close()
-        self.load_ui(tracking, pff, play, game, player, merge)
-        self.block.lunch()
-
-
-def restart_program_with_new_args(*new_args):
-    python = sys.executable
-    script = sys.argv[0]
-    args = [script] + list(new_args)
-    os.execv(python, sys.argv)
+# class UI:
+#     def __init__(self, data_path, default_weeks=1):
+#         self.block = None
+#         self.data_path = data_path
+#         self.default_weeks = default_weeks
+#         tracking, pff, play, game, player, merge = self.load_data(data_path, default_weeks)
+#         self.load_ui(tracking, pff, play, game, player, merge)
+#
+#     def load_data(self, data_path, default_weeks):
+#         logger.info("Load init data...")
+#         tracking, pff, play, game, player, merge = load_data(data_path, default_weeks)
+#         logger.info("Data loaded")
+#         return tracking, pff, play, game, player, merge
+#
+#     def load_ui(self, tracking, pff, play, game, player, merge):
+#         logger.info("Init UI")
+#         self.block = init_ui(tracking, pff, play, game, player, merge)
+#
+#     def reload_ui(self, data_path, default_weeks):
+#         tracking, pff, play, game, player, merge = self.load_data(data_path, default_weeks)
+#         self.block.close()
+#         self.load_ui(tracking, pff, play, game, player, merge)
+#         self.block.lunch()
 
 
 def main(args):
