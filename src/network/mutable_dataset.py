@@ -40,7 +40,7 @@ class DataGenerator:
         self.merge = merge
 
     def generate_dataset(self, x_columns, y_column, data_type='numpy', data_type_mapping=None, data_type_mapping_inverse=None, norm=False, tracking_data_include=True, player_needed=False,
-                         game_needed=False, dropna_y=True,
+                         game_needed=False, dropna_y=True, drop_all_na=True,
                          with_mapping_log=False):
         if data_type_mapping is None:
             data_type_mapping = {'gameClock': convertTimeToNumerical, 'height': heightInches}
@@ -59,7 +59,8 @@ class DataGenerator:
         preprocess_cols = x_columns + [y_column]
         cols_type = {name: df.dtypes[name] for name in df.columns}
         mapping_log = {}
-
+        if drop_all_na:
+            df = df.dropna(subset=preprocess_cols)
         df = df.fillna(method='ffill')
         for col, dtype in {c: cols_type[c] for c in preprocess_cols}.items():
             if col in data_type_mapping:
