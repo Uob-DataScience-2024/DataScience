@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import torch
+from loguru import logger
 from torch.utils.data import Dataset
 
 from data.total_data import SplitMode, TrackingNormData, PffNormData, PlayNormData, PlayerNormData, GameNormData, MergeNormData
@@ -39,23 +40,29 @@ class DataGenerator:
         self.player = player
         self.merge = merge
 
-    def generate_dataset(self, x_columns, y_column, data_type='numpy', data_type_mapping=None, data_type_mapping_inverse=None, norm=False, tracking_data_include=True, player_needed=False,
+    def generate_dataset(self, x_columns, y_column, data_type='numpy', data_type_mapping=None, data_type_mapping_inverse=None, norm=False, tracking_data_include=True, pff_data_include=True, player_needed=False,
                          game_needed=False, dropna_y=True, drop_all_na=True,
                          with_mapping_log=False):
         if data_type_mapping is None:
             data_type_mapping = {'gameClock': convertTimeToNumerical, 'height': heightInches}
         if data_type_mapping_inverse is None:
             data_type_mapping_inverse = {'height': lambda x: f"{int(x // 12)}-{int(x % 12)}", 'gameClock': lambda x: f"{int(x // 60)}:{int(x % 60)}"}
+        loaded_data = ['play']
+        df = self.play.data.copy()
         if tracking_data_include:
-            df = self.merge.game.copy()
-        else:
-            df = self.play.data.copy().merge(self.pff.data, on=['gameId', 'playId'], how='left')
+            df = df.merge(self.tracking.data, on=['gameId', 'playId', 'nflId'], how='left')
+            loaded_data += ['tracking']
+        if pff_data_include:
+            df = df.merge(self.pff.data, on=['gameId', 'playId'], how='left')
+            loaded_data += ['pff']
         if player_needed:
             df = df.merge(self.merge.player, on='nflId', how='left')
             df = df.dropna(subset=['height'])
+            loaded_data += ['player']
         if game_needed:
             df = df.merge(self.merge.game_info, on='gameId', how='left')
-
+            loaded_data += ['game']
+        logger.info(f"Loaded data: {loaded_data}")
         preprocess_cols = x_columns + [y_column]
         cols_type = {name: df.dtypes[name] for name in df.columns}
         mapping_log = {}

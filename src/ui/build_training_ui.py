@@ -21,7 +21,7 @@ def train_nn(
         x_cols: list, y_col: str, num_classes: int,
         model: str, optimizer: str, criterion: str,
         epochs: int, batch_size: int, learning_rate: float, split_ratio: float, k_fold: int,
-        gpu: bool = False, norm: bool = False, tracking_data_include: bool = True, player_needed: bool = False, game_needed: bool = False, drop_all_na: bool = False,
+        gpu: bool = False, norm: bool = False, tracking_data_include: bool = True, pff_data_include: bool = False, player_needed: bool = False, game_needed: bool = False, drop_all_na: bool = False,
         data_generator: DataGenerator = None):
     global scheduler
     progress_manager = ProcessManager(disable=False)
@@ -38,7 +38,7 @@ def train_nn(
         scheduler.close_progress_context()
     scheduler = NeuralNetworkScheduler('../data', 'cuda' if gpu else 'cpu', config, num_classes=num_classes, data_generator=data_generator,
                                        on_new_task=progress_manager.on_new_task, on_update=progress_manager.on_update, on_remove=progress_manager.on_remove)
-    scheduler.prepare(norm=norm, tracking_data_include=tracking_data_include, player_needed=player_needed, game_needed=game_needed, drop_all_na=drop_all_na)
+    scheduler.prepare(norm=norm, tracking_data_include=tracking_data_include, pff_data_include=pff_data_include, player_needed=player_needed, game_needed=game_needed, drop_all_na=drop_all_na)
     for i, (text, image) in enumerate(scheduler.train(epochs, batch_size, split_ratio) if k_fold == 0 else scheduler.train_k_fold(epochs, batch_size, split_ratio, k_folds=k_fold)):
         gr.Info(f"Training {i}/{epochs} epoch...[{(i + 1) / epochs * 100:.2f}%]")
         yield text, *image
@@ -106,7 +106,7 @@ def get_data(index, input_cols, y_col):
         y_list.append(y)
         x_list.append(x_new)
     df = pd.DataFrame(x_list, columns=input_cols)
-    return df, ','.join(y_list)
+    return df, '; '.join(y_list)
 
 
 def predict_nn(index, labels):
@@ -178,7 +178,8 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
                 x_cols = gr.CheckboxGroup(label="X Columns", choices=columns, value=['defendersInBox', 'quarter', 'yardsToGo', 'gameClock', 's', 'officialPosition'])
                 y_col = gr.Dropdown(label="Y Column", choices=columns, value='passResult')
                 norm = gr.Checkbox(label="Normalize Data", value=False)
-                tracking_data_include = gr.Checkbox(label="Tracking Data Include", value=True)
+                tracking_data_include = gr.Checkbox(label="Tracking Data Include", value=False)
+                pff_data_include = gr.Checkbox(label="PFF Data Include", value=True)
                 player_needed = gr.Checkbox(label="Player Data Needed", value=False)
                 game_needed = gr.Checkbox(label="Game Data Needed", value=False)
                 drop_all_na = gr.Checkbox(label="Drop All NA", value=False)
@@ -222,7 +223,7 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
             # close progress for image plot only
             t_event = btn_train.click(fn=lambda *x: (yield from train_nn(*x, data_generator=data_generator)), show_progress="minimal",
                                       inputs=[x_cols, y_col, num_classes, model, optimizer, criterion, epochs, batch_size, learning_rate, split_ratio, k_fold, gpu, norm, tracking_data_include,
-                                              player_needed, game_needed, drop_all_na],
+                                              pff_data_include, player_needed, game_needed, drop_all_na],
                                       outputs=[info, image_plot_loss, image_plot_acc])
             btn_stop.click(fn=None, cancels=[t_event])
     with gr.Row():
@@ -238,7 +239,12 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
             btn_analysis.click(fn=lambda *x: call_feature_analysis_target(x[0], sorted(full_col[x[1]].astype(str).astype('category').unique()), x[2], x[3]),
                                inputs=[x_cols, y_col, labels_to_test, gradient_test_limit],
                                outputs=[feature_analysis, heat_map])
-            y_col.change(lambda x: gr.CheckboxGroup(choices=sorted(full_col[x].astype(str).dopna().astype('category').unique()), value=[]), inputs=[y_col], outputs=[labels_to_test])
+
+            def get_labels(col_name):
+                sorted(full_col[col_name].astype(str).astype('category').unique())
+                return list(filter(lambda x: not pd.isnull(x) and x != 'nan', sorted(full_col[col_name].astype(str).astype('category').unique())))
+
+            y_col.change(lambda x: gr.CheckboxGroup(choices=get_labels(x), value=[]), inputs=[y_col], outputs=[labels_to_test])
 
     with gr.Row():
         with gr.Column():
@@ -261,7 +267,7 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
             result_acc = gr.Label(label="Result Accuracy")
             btn_predict = gr.Button("Predict", variant="primary")
             confidence_figs = gr.Gallery(label="Confidence Figs")
-            btn_predict.click(fn=lambda *x: predict_nn(*x[:1], labels=sorted(full_col[x[1]].astype(str).astype('category').unique())),
+            btn_predict.click(fn=lambda *x: predict_nn(*x[:1], labels=sorted(full_col[x[1]].astype(str).dropna().astype('category').unique())),
                               inputs=[index_of_data, y_col], outputs=[result_confidence, result_acc, confidence_figs])
 
 
