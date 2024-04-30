@@ -34,6 +34,8 @@ def train_nn(
             'input_dim': len(x_cols), 'hidden_dim': 512, 'num_layers': 3, 'dropout': 0.2
         }
     )
+    if scheduler is not None:
+        scheduler.close_progress_context()
     scheduler = NeuralNetworkScheduler('../data', 'cuda' if gpu else 'cpu', config, num_classes=num_classes, data_generator=data_generator,
                                        on_new_task=progress_manager.on_new_task, on_update=progress_manager.on_update, on_remove=progress_manager.on_remove)
     scheduler.prepare(norm=norm, tracking_data_include=True, player_needed=player_needed, game_needed=game_needed)
@@ -208,7 +210,7 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
             gr.Markdown("### Train")
 
             btn_train = gr.Button("Train", variant="primary")
-            # btn_stop = gr.Button("Stop", variant="stop")
+            btn_stop = gr.Button("Stop", variant="stop")
             info = gr.Textbox("Training info", value="")
             with gr.Row():
                 image_plot_loss = gr.Plot(label="Training info plot(loss)")
@@ -218,7 +220,7 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
                                       inputs=[x_cols, y_col, num_classes, model, optimizer, criterion, epochs, batch_size, learning_rate, split_ratio, k_fold, gpu, norm, tracking_data_include,
                                               player_needed, game_needed],
                                       outputs=[info, image_plot_loss, image_plot_acc])
-            # btn_stop.click(fn=None, cancels=[t_event])
+            btn_stop.click(fn=None, cancels=[t_event])
     with gr.Row():
         with gr.Column():
             gr.Markdown("### Model Analysis")

@@ -167,6 +167,7 @@ class Trainer:
 
 class NeuralNetworkScheduler:
     def __init__(self, dataset_dir, device, config: TrainingConfigure, num_classes=2, data_generator: DataGenerator = None, on_new_task=None, on_update=None, on_remove=None):
+        self.progress = None
         self.test_loader = None
         self.train_loader = None
         self.dataset_dir = dataset_dir
@@ -221,8 +222,10 @@ class NeuralNetworkScheduler:
         self.train_loader = train_loader
         self.test_loader = test_loader
         logger.info("Start training...")
-        with CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove) as progress:
-            yield from self.trainner.train(train_loader, test_loader, epochs, progress, display_window=display_window, regression_task=regression_task, regression_allow_diff=regression_allow_diff)
+        self.progress = CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove)
+        with self.progress:
+            yield from self.trainner.train(train_loader, test_loader, epochs, self.progress, display_window=display_window, regression_task=regression_task,
+                                           regression_allow_diff=regression_allow_diff)
 
     def train_k_fold(self, epochs, batch_size, split_ratio, display_window=10, k_folds=5, regression_task=False, regression_allow_diff=5):
         if not self.ready:
@@ -230,8 +233,9 @@ class NeuralNetworkScheduler:
         logger.info("Splitting dataset...")
         splits = self.k_fold_cross_val_split(self.dataset, k_folds=k_folds)
         logger.info("Start training...")
-        with CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove) as progress:
-            task_k_fold = progress.add_task(f"K-Fold Cross Validation", total=k_folds)
+        self.progress = CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove)
+        with self.progress:
+            task_k_fold = self.progress.add_task(f"K-Fold Cross Validation", total=k_folds)
             for fold in range(k_folds):
                 train_idx = [idx for i, sublist in enumerate(splits) if i != fold for idx in sublist]
                 test_idx = splits[fold]
@@ -242,9 +246,13 @@ class NeuralNetworkScheduler:
                 self.train_loader = DataLoader(train_subsampler, batch_size=batch_size, shuffle=False)
                 self.test_loader = DataLoader(test_subsampler, batch_size=batch_size, shuffle=False)
                 self.re_init()
-                yield from self.trainner.train(self.train_loader, self.test_loader, epochs, progress, display_window=display_window, regression_task=regression_task,
+                yield from self.trainner.train(self.train_loader, self.test_loader, epochs, self.progress, display_window=display_window, regression_task=regression_task,
                                                regression_allow_diff=regression_allow_diff, cross_val=True)
-                progress.update(task_k_fold, advance=1)
+                self.progress.update(task_k_fold, advance=1)
+
+    def close_progress_context(self):
+        if self.progress is not None:
+            self.progress.stop()
 
     @staticmethod
     def k_fold_cross_val_split(dataset, k_folds=5, shuffle=True):
