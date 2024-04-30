@@ -196,7 +196,7 @@ class NeuralNetworkScheduler:
         self.trainner.model = self.model
         self.trainner.optimizer = self.optimizer
 
-    def prepare(self, norm=True, tracking_data_include=True, player_needed=False, game_needed=False):
+    def prepare(self, norm=True, tracking_data_include=True, player_needed=False, game_needed=False, drop_all_na=False):
         if self.data_generator is None:
             logger.info("Loading data...")
             tracking, pff, play, game, player, merge = load_data(self.dataset_dir)
@@ -208,7 +208,7 @@ class NeuralNetworkScheduler:
         column_y = self.config.target_feature
         self.dataset, self.data_mapping_log, self.data_type_mapping_inverse = self.data_generator.generate_dataset(columns_x, column_y, data_type='torch', player_needed=player_needed,
                                                                                                                    game_needed=game_needed, norm=norm, tracking_data_include=tracking_data_include,
-                                                                                                                   with_mapping_log=True)
+                                                                                                                   with_mapping_log=True, drop_all_na=drop_all_na)
         logger.info("Dataset ready")
         logger.warning(f"Dataset size: {len(self.dataset)}")
         self.ready = True
