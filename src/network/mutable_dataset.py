@@ -39,13 +39,17 @@ class DataGenerator:
         self.player = player
         self.merge = merge
 
-    def generate_dataset(self, x_columns, y_column, data_type='numpy', data_type_mapping=None, data_type_mapping_inverse=None, norm=False, player_needed=False, game_needed=False, dropna_y=True,
+    def generate_dataset(self, x_columns, y_column, data_type='numpy', data_type_mapping=None, data_type_mapping_inverse=None, norm=False, tracking_data_include=True, player_needed=False,
+                         game_needed=False, dropna_y=True,
                          with_mapping_log=False):
         if data_type_mapping is None:
             data_type_mapping = {'gameClock': convertTimeToNumerical, 'height': heightInches}
         if data_type_mapping_inverse is None:
             data_type_mapping_inverse = {'height': lambda x: f"{int(x // 12)}-{int(x % 12)}", 'gameClock': lambda x: f"{int(x // 60)}:{int(x % 60)}"}
-        df = self.merge.game.copy()
+        if tracking_data_include:
+            df = self.merge.game.copy()
+        else:
+            df = self.play.data.copy().merge(self.pff.data, on=['gameId', 'playId'], how='left')
         if player_needed:
             df = df.merge(self.merge.player, on='nflId', how='left')
             df = df.dropna(subset=['height'])
@@ -85,6 +89,6 @@ class DataGenerator:
             return (X, Y) if not with_mapping_log else (X, Y, mapping_log, data_type_mapping_inverse)
         elif data_type == 'torch':
             return SimpleDataset(X.values, Y.astype('category').cat.codes.to_numpy()) if not with_mapping_log else (
-            SimpleDataset(X.values, Y.astype('category').cat.codes.to_numpy()), mapping_log, data_type_mapping_inverse)
+                SimpleDataset(X.values, Y.astype('category').cat.codes.to_numpy()), mapping_log, data_type_mapping_inverse)
         else:
             raise ValueError(f"Data type {data_type} not supported")
