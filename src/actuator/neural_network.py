@@ -210,6 +210,7 @@ class NeuralNetworkScheduler:
                                                                                                                    game_needed=game_needed, norm=norm, tracking_data_include=tracking_data_include,
                                                                                                                    with_mapping_log=True)
         logger.info("Dataset ready")
+        logger.warning(f"Dataset size: {len(self.dataset)}")
         self.ready = True
 
     def train(self, epochs, batch_size, split_ratio, display_window=10, regression_task=False, regression_allow_diff=5):

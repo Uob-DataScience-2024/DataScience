@@ -38,7 +38,7 @@ def train_nn(
         scheduler.close_progress_context()
     scheduler = NeuralNetworkScheduler('../data', 'cuda' if gpu else 'cpu', config, num_classes=num_classes, data_generator=data_generator,
                                        on_new_task=progress_manager.on_new_task, on_update=progress_manager.on_update, on_remove=progress_manager.on_remove)
-    scheduler.prepare(norm=norm, tracking_data_include=True, player_needed=player_needed, game_needed=game_needed)
+    scheduler.prepare(norm=norm, tracking_data_include=tracking_data_include, player_needed=player_needed, game_needed=game_needed)
     for i, (text, image) in enumerate(scheduler.train(epochs, batch_size, split_ratio) if k_fold == 0 else scheduler.train_k_fold(epochs, batch_size, split_ratio, k_folds=k_fold)):
         gr.Info(f"Training {i}/{epochs} epoch...[{(i + 1) / epochs * 100:.2f}%]")
         yield text, *image
