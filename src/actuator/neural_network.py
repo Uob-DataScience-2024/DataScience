@@ -103,7 +103,8 @@ class Trainer:
         progress_epoch = progress.add_task("[yellow]Epochs...", total=epochs)
         loss_epoch = []
         accuracy_epoch = []
-        for epoch in range(epochs):
+
+        for i, epoch in enumerate(range(epochs)):
             train_loss, train_accuracy = self.train_epoch(train_loader, epoch, progress, display_window, same_mode, regression_task, regression_allow_diff)
             test_loss, test_accuracy = self.test_epoch(test_loader, progress, display_window, same_mode, regression_task, regression_allow_diff)
             progress.update(progress_epoch, advance=1, description=f"Epoch {epoch + 1}/{epochs}, " +
@@ -111,23 +112,33 @@ class Trainer:
                                                                    f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy * 100:.4f}%")
             loss_epoch.append(test_loss)
             accuracy_epoch.append(test_accuracy)
-            if cross_val:
-                self.train_loss_pool.append(train_loss)
-                self.train_accuracy_pool.append(train_accuracy)
-                self.test_loss_pool.append(test_loss)
-                self.test_accuracy_pool.append(test_accuracy)
-                train_loss = np.mean(self.train_loss_pool)
-                train_accuracy = np.mean(self.train_accuracy_pool)
-                test_loss = np.mean(self.test_loss_pool)
-                test_accuracy = np.mean(self.test_accuracy_pool)
+            # if cross_val:
+            #     self.train_loss_pool.append(train_loss)
+            #     self.train_accuracy_pool.append(train_accuracy)
+            #     self.test_loss_pool.append(test_loss)
+            #     self.test_accuracy_pool.append(test_accuracy)
+            #     train_loss = np.mean(self.train_loss_pool)
+            #     train_accuracy = np.mean(self.train_accuracy_pool)
+            #     test_loss = np.mean(self.test_loss_pool)
+            #     test_accuracy = np.mean(self.test_accuracy_pool)
             self.writer.add_scalar("Training/Epoch Loss", train_loss, epoch)
             self.writer.add_scalar("Training/Epoch Accuracy", train_accuracy * 100, epoch)
             self.writer.add_scalar("Testing/Epoch Loss", test_loss, epoch)
             self.writer.add_scalar("Testing/Epoch Accuracy", test_accuracy * 100, epoch)
+            if cross_val and epochs - 1 == i:
+                self.train_loss_pool.append(train_loss)
+                self.train_accuracy_pool.append(train_accuracy)
+                self.test_loss_pool.append(test_loss)
+                self.test_accuracy_pool.append(test_accuracy)
             yield (f"Epoch {epoch + 1}/{epochs}, " +
                    f"Train Loss: {train_loss:.4f}, Train Accuracy: {train_accuracy * 100:.4f}%, " +
                    f"Test Loss: {test_loss:.4f}, Test Accuracy: {test_accuracy * 100:.4f}%" + (
-                       "" if not cross_val else f"loss std: {np.std(test_loss)} | acc std: {np.std(test_accuracy)} [Cross Validation Enabled]")), self.draw_plot_2(loss_epoch, accuracy_epoch)
+                       "" if not cross_val else (
+                               f"\n K-Fold Cross Validation: \n" + f"Train Loss: {np.mean(self.train_loss_pool)} | Train Accuracy: {np.mean(self.train_accuracy_pool) * 100:.4f}% \n" +
+                               f"Test Loss: {np.mean(self.test_loss_pool)} | Test Accuracy: {np.mean(self.test_accuracy_pool) * 100:.4f}% \n" +
+                               f"loss std: {np.std(test_loss)} | acc std: {np.std(test_accuracy)} [Cross Validation Enabled]"))), self.draw_plot_2(loss_epoch, accuracy_epoch)
+
+
 
     @staticmethod
     def draw_plot(loss, acc):
