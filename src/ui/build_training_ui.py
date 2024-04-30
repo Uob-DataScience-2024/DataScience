@@ -242,7 +242,7 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
 
             def get_labels(col_name):
                 sorted(full_col[col_name].astype(str).astype('category').unique())
-                return list(filter(lambda x: not pd.isnull(x), sorted(full_col[col_name].astype(str).astype('category').unique())))
+                return list(filter(lambda x: not pd.isnull(x) and x != 'nan', sorted(full_col[col_name].astype(str).astype('category').unique())))
 
             y_col.change(lambda x: gr.CheckboxGroup(choices=get_labels(x), value=[]), inputs=[y_col], outputs=[labels_to_test])
 
