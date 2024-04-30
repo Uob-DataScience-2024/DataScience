@@ -5,7 +5,7 @@ from data.total_data import SplitMode, TrackingNormData, PffNormData, PlayNormDa
 def load_data(data_dir: str, week_limit=0):
     weeks = [x for x in os.listdir(data_dir) if x.startswith('week')]
     if len(weeks) == 0:
-        raise ValueError("No week file found")
+        raise ValueError(f"No week file found in directory {os.path.abspath(data_dir)}")
     weeks = [os.path.join(data_dir, x) for x in weeks]
     if week_limit > 0:
         weeks = weeks[:week_limit]
