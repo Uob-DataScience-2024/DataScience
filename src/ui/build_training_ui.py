@@ -21,7 +21,7 @@ def train_nn(
         x_cols: list, y_col: str, num_classes: int,
         model: str, optimizer: str, criterion: str,
         epochs: int, batch_size: int, learning_rate: float, split_ratio: float, k_fold: int,
-        gpu: bool = False, norm: bool = False, player_needed: bool = False, game_needed: bool = False,
+        gpu: bool = False, norm: bool = False, tracking_data_include: bool = True, player_needed: bool = False, game_needed: bool = False,
         data_generator: DataGenerator = None):
     global scheduler
     progress_manager = ProcessManager(disable=False)
@@ -36,7 +36,7 @@ def train_nn(
     )
     scheduler = NeuralNetworkScheduler('../data', 'cuda' if gpu else 'cpu', config, num_classes=num_classes, data_generator=data_generator,
                                        on_new_task=progress_manager.on_new_task, on_update=progress_manager.on_update, on_remove=progress_manager.on_remove)
-    scheduler.prepare(norm=norm, player_needed=player_needed, game_needed=game_needed)
+    scheduler.prepare(norm=norm, tracking_data_include=True, player_needed=player_needed, game_needed=game_needed)
     for i, (text, image) in enumerate(scheduler.train(epochs, batch_size, split_ratio) if k_fold == 0 else scheduler.train_k_fold(epochs, batch_size, split_ratio, k_folds=k_fold)):
         gr.Info(f"Training {i}/{epochs} epoch...[{(i + 1) / epochs * 100:.2f}%]")
         yield text, *image
@@ -176,6 +176,7 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
                 x_cols = gr.CheckboxGroup(label="X Columns", choices=columns, value=['defendersInBox', 'quarter', 'yardsToGo', 'gameClock', 's', 'officialPosition'])
                 y_col = gr.Dropdown(label="Y Column", choices=columns, value='passResult')
                 norm = gr.Checkbox(label="Normalize Data", value=False)
+                tracking_data_include = gr.Checkbox(label="Tracking Data Include", value=True)
                 player_needed = gr.Checkbox(label="Player Data Needed", value=False)
                 game_needed = gr.Checkbox(label="Game Data Needed", value=False)
         with gr.Column():
@@ -214,7 +215,8 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
                 image_plot_acc = gr.Plot(label="Training info plot(accuracy)")
             # close progress for image plot only
             t_event = btn_train.click(fn=lambda *x: (yield from train_nn(*x, data_generator=data_generator)), show_progress="minimal",
-                                      inputs=[x_cols, y_col, num_classes, model, optimizer, criterion, epochs, batch_size, learning_rate, split_ratio, k_fold, gpu, norm, player_needed, game_needed],
+                                      inputs=[x_cols, y_col, num_classes, model, optimizer, criterion, epochs, batch_size, learning_rate, split_ratio, k_fold, gpu, norm, tracking_data_include,
+                                              player_needed, game_needed],
                                       outputs=[info, image_plot_loss, image_plot_acc])
             # btn_stop.click(fn=None, cancels=[t_event])
     with gr.Row():
