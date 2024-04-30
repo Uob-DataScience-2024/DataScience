@@ -186,7 +186,10 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
             with gr.Group():
                 num_classes = gr.Number(label="Number of Classes", value=2)
                 auto_num_classes = gr.Button("Auto Detect Number of Classes")
-                auto_num_classes.click(fn=lambda x: len(full_col[x].unique()), inputs=[y_col], outputs=[num_classes])
+                auto_num_classes.click(fn=
+                                       lambda x:
+                                       len(full_col[x].unique())
+                                       , inputs=[y_col], outputs=[num_classes])
             gr.Markdown("### Training settings")
             with gr.Group():
                 gpu = gr.Checkbox(label="Use GPU", value=False)
