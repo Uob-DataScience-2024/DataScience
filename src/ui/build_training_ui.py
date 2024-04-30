@@ -256,7 +256,7 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
                 btn_get_range = gr.Button("Get Range")
                 btn_get_range.click(fn=lambda x: gr.Markdown(f"- Dataset Range: 0 - {len(scheduler.dataset)}"), outputs=[ranges_dataset])
             with gr.Row():
-                lmt_rand = gr.Number(label="Random Limit Numbers", value=10)
+                lmt_rand = gr.Number(label="Random Limit Numbers", value=20)
                 index_rand = gr.Button("Random Indexes")
                 index_rand.click(fn=lambda x: ', '.join(map(str, np.random.randint(0, len(scheduler.dataset), x).tolist())), inputs=[lmt_rand], outputs=[index_of_data])
             btn_load_detail = gr.Button("Load Detail", variant="primary")
