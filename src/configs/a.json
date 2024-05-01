@@ -13,32 +13,23 @@
     "a",
     "dis",
     "o",
-    "dir",
-    "pff_passCoverageType",
-    "pff_passCoverage",
-    "pff_playAction",
-    "defendersInBox",
-    "yardsToGo",
-    "down",
-    "offenseFormation",
-    "preSnapHomeScore",
-    "preSnapVisitorScore"
+    "dir"
   ],
   "model": "GRU",
   "model_hyperparameters": {
     "dropout": 0.15,
     "hidden_dim": 256,
-    "input_dim": 23,
+    "input_dim": 14,
     "num_layers": 3
   },
-  "name": "A",
+  "name": "pff_blockType",
   "split": false,
-  "target_feature": "playResult",
+  "target_feature": "pff_blockType",
   "training_hyperparameters": {
-    "batch_size": 4,
+    "batch_size": 32,
     "split_step": 256,
     "criterion": "MSELoss",
-    "num_epochs": 5,
+    "num_epochs": 30,
     "optimizer": "Adam",
     "optimizer_hyperparameters": {
       "lr": 0.001

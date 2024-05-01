@@ -1,6 +1,8 @@
 import os
 import unittest
 
+import numpy as np
+import pandas as pd
 import torch
 from loguru import logger
 
@@ -86,6 +88,41 @@ class ModelTest(unittest.TestCase):
         output = model(tensor)
         logger.info(f"output shape: {output.shape}")
         self.assertEqual(output.shape, (10, 5, 30))
+
+
+import matplotlib.pyplot as plt
+
+
+class Test114514(unittest.TestCase):
+    def test_114514(self):
+        tracking_files = [x for x in os.listdir('../data') if x.startswith('week') and x.endswith('.csv')]
+        df = pd.DataFrame()
+        for file in tracking_files:
+            df = pd.concat([df, pd.read_csv(f'../data/{file}')])
+        df['time'] = pd.to_datetime(df['time'])
+        logger.info(f"tracking data: {df.shape}")
+        grouped = df.groupby(['gameId', 'playId'])
+        diffs = []
+        for key, group in grouped:
+            min_time = group['time'].min()
+            max_time = group['time'].max()
+            diff_time = max_time - min_time
+            diffs.append(diff_time.total_seconds())
+        # draw histogram by normal distribution style, highlight mix and max value of x-axis, including the text
+
+        # remove outliers
+
+        plt.hist(diffs, bins=100)
+        plt.axvline(min(diffs), color='r')
+        plt.axvline(max(diffs), color='r')
+        plt.text(min(diffs), 10, f"min: {min(diffs)}")
+        plt.text(max(diffs), 10, f"max: {max(diffs)}")
+        plt.xlabel('Time difference (s)')
+        plt.ylabel('Frequency')
+        plt.title(f'Time difference distribution (Average: {np.mean(diffs):.4f}s)')
+        plt.show()
+
+        self.assertEqual(114514, 114514)
 
 
 if __name__ == '__main__':

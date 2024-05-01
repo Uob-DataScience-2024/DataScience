@@ -169,6 +169,149 @@ class StatisticsTest(unittest.TestCase):
         plt.tight_layout()
         plt.show()
 
+    def test_team_new_version(self):
+        n_cols = 5
+        data_year = 2023
+        tracking, pff, play, game, player, merge = load_data('../test_data')
+        df = merge.game.copy()
+        result = {}
+        formations = df['offenseFormation'].dropna().unique()
+        # gameNFLData, game_data, player_data = load_demo_data_nfl_data()
+        official_position = player.data['officialPosition'].dropna().unique()
+        pff_role = ["Coverage", "Pass", "Pass block", "Pass route", "Pass rush"]
+        home_visitor = game.data.groupby('gameId')[['homeTeamAbbr', 'visitorTeamAbbr']].first().to_dict()
+        group_df = df.groupby('gameId')
+        for game_id, sub_df in tqdm(group_df):
+            home, visitor = home_visitor['homeTeamAbbr'][game_id], home_visitor['visitorTeamAbbr'][game_id]
+            sub_df = sub_df[sub_df['team'] != 'football']
+            home_score = sub_df[sub_df['team'] == home]['preSnapHomeScore'].max()
+            visitor_score = sub_df[sub_df['team'] == visitor]['preSnapVisitorScore'].max()
+            group = sub_df.groupby('team')
+            for team, data in group:
+                win = home_score > visitor_score if team == home else home_score < visitor_score
+                draw = home_score == visitor_score
+                players = data['nflId'].dropna().unique().tolist()
+                if team not in result:
+                    result[team] = {"formations": {x: 0 for x in formations},
+                                    "officialPosition": {x: 0 for x in official_position},
+                                    "pffRole": {x: 0 for x in pff_role},
+                                    "win": 0, "draw": 0, "lose": 0, "players": []}
+                for formation in formations:
+                    result[team]['formations'][formation] += len(data[data['offenseFormation'] == formation])
+                for role in pff_role:
+                    result[team]['pffRole'][role] += len(data[data['pff_role'] == role])
+                if draw:
+                    result[team]['draw'] += 1
+                elif win:
+                    result[team]['win'] += 1
+                else:
+                    result[team]['lose'] += 1
+                result[team]['players'] += players
+
+        for i, (team, data) in enumerate(result.items()):
+            result[team]['officialPosition'] = {}
+            temp = player.data.copy()
+            temp = temp[np.isin(temp['nflId'], result[team]['players'])]
+            officialPosition = temp["officialPosition"].value_counts()
+            age = pd.to_datetime(temp['birthDate'].dropna(), format='mixed').apply(lambda x: data_year - x.year).dropna().tolist()
+            result[team]['age'] = age
+            for position, count in officialPosition.items():
+                result[team]['officialPosition'][position] = count
+
+        n_rows = np.ceil(len(result) / n_cols).astype(int)
+
+        # big plot
+
+        # plot formation
+        fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols * 6, n_rows * 3))
+        for i, (team, data) in enumerate(result.items()):
+            ax = axs[i // n_cols, i % n_cols]
+            ax.bar(data['formations'].keys(), data['formations'].values())
+            ax.set_title(team)
+        total_plots = n_rows * n_cols
+        for j in range(i + 1, total_plots):
+            fig.delaxes(axs[j // n_cols, j % n_cols])
+        plt.suptitle('Formations', y=0.99)
+        plt.tight_layout()
+        plt.show()
+
+        # plot win/lose/draw
+
+        fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols * 3, n_rows * 3))
+        for i, (team, data) in enumerate(result.items()):
+            ax = axs[i // n_cols, i % n_cols]
+            ax.bar(['win', 'draw', 'lose'], [data['win'], data['draw'], data['lose']])
+            ax.set_title(team)
+        total_plots = n_rows * n_cols
+        for j in range(i + 1, total_plots):
+            fig.delaxes(axs[j // n_cols, j % n_cols])
+        plt.suptitle('Win/Draw/Lose', y=0.99)
+        plt.tight_layout()
+        plt.show()
+
+        # plot official position
+        fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols * 6, n_rows * 3))
+        for i, (team, data) in enumerate(result.items()):
+            ax = axs[i // n_cols, i % n_cols]
+            ax.bar(data['officialPosition'].keys(), data['officialPosition'].values())
+            ax.set_title(team)
+        total_plots = n_rows * n_cols
+        for j in range(i + 1, total_plots):
+            fig.delaxes(axs[j // n_cols, j % n_cols])
+        plt.suptitle('Official Position', y=0.99)
+        plt.tight_layout()
+        plt.show()
+
+        # plot age
+        fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols * 3, n_rows * 3))
+        for i, (team, data) in enumerate(result.items()):
+            ax = axs[i // n_cols, i % n_cols]
+            ax.hist(data['age'])
+            ax.set_title(team)
+        total_plots = n_rows * n_cols
+        for j in range(i + 1, total_plots):
+            fig.delaxes(axs[j // n_cols, j % n_cols])
+        plt.suptitle('Age', y=0.99)
+        plt.tight_layout()
+
+        # plot pff role
+        fig, axs = plt.subplots(n_rows, n_cols, figsize=(n_cols * 6, n_rows * 3))
+        for i, (team, data) in enumerate(result.items()):
+            ax = axs[i // n_cols, i % n_cols]
+            ax.bar(data['pffRole'].keys(), data['pffRole'].values())
+            ax.set_title(team)
+        total_plots = n_rows * n_cols
+        for j in range(i + 1, total_plots):
+            fig.delaxes(axs[j // n_cols, j % n_cols])
+        plt.suptitle('PFF Role', y=0.99)
+        plt.tight_layout()
+        plt.show()
+
+        # small plot
+
+        # plot players
+        fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+        ax.bar(result.keys(), [len(x['players']) for x in result.values()])
+        plt.title('Players')
+        plt.tight_layout()
+        plt.show()
+
+        # plot avg age
+        fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+        ax.bar(result.keys(), [np.mean(x['age']) for x in result.values()])
+        plt.title('Average Age')
+        plt.tight_layout()
+        plt.show()
+
+        # plot win rate
+        fig, ax = plt.subplots(1, 1, figsize=(12, 6))
+        ax.bar(result.keys(), [x['win'] / (x['win'] + x['lose']) for x in result.values()])
+        plt.title('Win Rate')
+        plt.tight_layout()
+        plt.show()
+
+        self.assertEqual(True, True)
+
     def test_team(self):
         n_cols = 5
         dpi = 300
@@ -309,3 +452,24 @@ class StatisticsTest(unittest.TestCase):
         plt.show()
 
         self.assertEqual(True, True)
+
+    def test_player(self):
+        tracking, pff, play, game, player, merge = load_data('../test_data')
+        df = merge.game.copy()
+        df.merge(merge.player, on='nflId', how='left')
+        df.merge(merge.game_info, on='gameId', how='left')
+        df['gameId-playId'] = df['gameId'].astype(str) + '-' + df['playId'].astype(str)
+        df.drop_duplicates(subset=['gameId-playId'], inplace=True)
+        cols = df.columns
+        cols = cols.drop(['pff_positionLinedUp', 'prePenaltyPlayResult'])
+        na_counts = []
+        for col in cols:
+            # count na value in each column
+            na_count = df[col].isna().sum()
+            na_counts.append(na_count)
+        fig = plt.figure(figsize=(24, 12))
+        plt.bar(cols, na_counts)
+        plt.xticks(rotation=45)
+        plt.title('NA Counts')
+        plt.tight_layout()
+        plt.show()
