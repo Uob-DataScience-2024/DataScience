@@ -142,18 +142,20 @@ def predict_nn(index, labels):
 def train_rf(
         x_cols: list, y_col: str, split_ratio: float,
         n_estimators: int = 100, min_samples_split: int = 2, min_samples_leaf: int = 1,
-        bootstrap: bool = True, criterion: str = 'gini', min_impurity_decrease: float = 0.0, oob_score: bool = False,
+        bootstrap: bool = True, criterion: str = 'gini', min_impurity_decrease: float = 0.0, oob_score: bool = False, k_fold: int = 0,
         norm: bool = False, tracking_data_include: bool = True, pff_data_include: bool = False, player_needed: bool = False, game_needed: bool = False, drop_all_na: bool = False,
         data_generator: DataGenerator = None
 ):
+    progress_manager = ProcessManager(disable=False)
     config = DecisionTreeConfig(
         n_estimators=n_estimators, min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
         bootstrap=bootstrap, criterion=criterion, min_impurity_decrease=min_impurity_decrease, oob_score=oob_score,
     )
-    scheduler = DecisionTreeScheduler('../data', config=config, data_generator=data_generator)
-    scheduler.prepare(x_cols, y_col, norm=norm, tracking_data_include=tracking_data_include, pff_data_include=pff_data_include, player_needed=player_needed, game_needed=game_needed, drop_all_na=drop_all_na)
-    acc = scheduler.train( split_ratio=split_ratio)
-    return f"Accuracy: {acc * 100:.2f}%"
+    scheduler = DecisionTreeScheduler('../data', config=config, data_generator=data_generator,
+                                      on_new_task=progress_manager.on_new_task, on_update=progress_manager.on_update, on_remove=progress_manager.on_remove)
+    scheduler.prepare(x_cols, y_col, norm=norm, tracking_data_include=tracking_data_include, pff_data_include=pff_data_include, player_needed=player_needed, game_needed=game_needed,
+                      drop_all_na=drop_all_na)
+    yield from scheduler.train(split_ratio=split_ratio, cross_validation=k_fold > 0, n_splits=k_fold)
 
 
 def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
@@ -309,6 +311,7 @@ def rf_ui(columns, data_generator, full_col, config_dir='configs/rf'):
                 criterion = gr.Dropdown(label="Criterion", choices=['gini', 'entropy'], value='gini')
                 min_impurity_decrease = gr.Number(label="Min Impurity Decrease", value=0.0)
                 oob_score = gr.Checkbox(label="OOB Score", value=False)
+                k_fold = gr.Slider(label="K-Fold", value=0, minimum=0, maximum=10, step=1, info="0 means disable k-fold")
 
     btn_load.click(fn=lambda x: load_config(x), inputs=[cached],
                    outputs=[x_cols, y_col, split_ratio, n_estimators, min_samples_split, min_samples_leaf, bootstrap, criterion, min_impurity_decrease, oob_score])
@@ -320,6 +323,7 @@ def rf_ui(columns, data_generator, full_col, config_dir='configs/rf'):
             btn_train = gr.Button("Train", variant="primary")
             info = gr.Textbox("Training info", value="")
             t_event = btn_train.click(fn=
-                                      lambda *x: train_rf(*x, data_generator=data_generator),
-                                      inputs=[x_cols, y_col, split_ratio, n_estimators, min_samples_split, min_samples_leaf, bootstrap, criterion, min_impurity_decrease, oob_score, norm, tracking_data_include, pff_data_include, player_needed, game_needed, drop_all_na],
+                                      lambda *x: (yield from train_rf(*x, data_generator=data_generator)), show_progress="minimal",
+                                      inputs=[x_cols, y_col, split_ratio, n_estimators, min_samples_split, min_samples_leaf, bootstrap, criterion, min_impurity_decrease, oob_score, k_fold, norm,
+                                              tracking_data_include, pff_data_include, player_needed, game_needed, drop_all_na],
                                       outputs=[info])
