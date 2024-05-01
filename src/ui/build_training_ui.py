@@ -143,16 +143,16 @@ def train_rf(
         x_cols: list, y_col: str, split_ratio: float,
         n_estimators: int = 100, min_samples_split: int = 2, min_samples_leaf: int = 1,
         bootstrap: bool = True, criterion: str = 'gini', min_impurity_decrease: float = 0.0, oob_score: bool = False,
+        norm: bool = False, tracking_data_include: bool = True, pff_data_include: bool = False, player_needed: bool = False, game_needed: bool = False, drop_all_na: bool = False,
         data_generator: DataGenerator = None
 ):
     config = DecisionTreeConfig(
         n_estimators=n_estimators, min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
         bootstrap=bootstrap, criterion=criterion, min_impurity_decrease=min_impurity_decrease, oob_score=oob_score,
-
     )
     scheduler = DecisionTreeScheduler('../data', config=config, data_generator=data_generator)
-    scheduler.prepare()
-    acc = scheduler.train(x_cols, y_col, split_ratio=split_ratio)
+    scheduler.prepare(x_cols, y_col, norm=norm, tracking_data_include=tracking_data_include, pff_data_include=pff_data_include, player_needed=player_needed, game_needed=game_needed, drop_all_na=drop_all_na)
+    acc = scheduler.train( split_ratio=split_ratio)
     return f"Accuracy: {acc * 100:.2f}%"
 
 
@@ -293,8 +293,11 @@ def rf_ui(columns, data_generator, full_col, config_dir='configs/rf'):
                 x_cols = gr.CheckboxGroup(label="X Columns", choices=columns, value=['defendersInBox', 'quarter', 'yardsToGo', 'gameClock', 's', 'officialPosition'])
                 y_col = gr.Dropdown(label="Y Column", choices=columns, value='passResult')
                 norm = gr.Checkbox(label="Normalize Data", value=False)
+                tracking_data_include = gr.Checkbox(label="Tracking Data Include", value=False)
+                pff_data_include = gr.Checkbox(label="PFF Data Include", value=True)
                 player_needed = gr.Checkbox(label="Player Data Needed", value=False)
                 game_needed = gr.Checkbox(label="Game Data Needed", value=False)
+                drop_all_na = gr.Checkbox(label="Drop All NA", value=False)
         with gr.Column():
             gr.Markdown("### Fit settings")
             with gr.Group():
@@ -318,5 +321,5 @@ def rf_ui(columns, data_generator, full_col, config_dir='configs/rf'):
             info = gr.Textbox("Training info", value="")
             t_event = btn_train.click(fn=
                                       lambda *x: train_rf(*x, data_generator=data_generator),
-                                      inputs=[x_cols, y_col, split_ratio, n_estimators, min_samples_split, min_samples_leaf, bootstrap, criterion, min_impurity_decrease, oob_score],
+                                      inputs=[x_cols, y_col, split_ratio, n_estimators, min_samples_split, min_samples_leaf, bootstrap, criterion, min_impurity_decrease, oob_score, norm, tracking_data_include, pff_data_include, player_needed, game_needed, drop_all_na],
                                       outputs=[info])

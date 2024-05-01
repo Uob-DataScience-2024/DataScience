@@ -138,8 +138,6 @@ class Trainer:
                                f"Test Loss: {np.mean(self.test_loss_pool)} | Test Accuracy: {np.mean(self.test_accuracy_pool) * 100:.4f}% \n" +
                                f"loss std: {np.std(test_loss)} | acc std: {np.std(test_accuracy)} [Cross Validation Enabled]"))), self.draw_plot_2(loss_epoch, accuracy_epoch)
 
-
-
     @staticmethod
     def draw_plot(loss, acc):
         fig, ax = plt.subplots(2)

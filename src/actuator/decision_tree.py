@@ -23,7 +23,7 @@ class DecisionTreeConfig(dict):
 
 
 class Trainer:
-    def __init__(self, n_estimators: int = 100,  min_samples_split: int = 2, min_samples_leaf: int = 1,
+    def __init__(self, n_estimators: int = 100, min_samples_split: int = 2, min_samples_leaf: int = 1,
                  bootstrap: bool = True, criterion: Literal['gini', 'entropy'] = 'gini', min_impurity_decrease: float = 0.0, oob_score: bool = False):
         self.n_estimators = n_estimators
         self.min_samples_split = min_samples_split
@@ -64,16 +64,19 @@ class DecisionTreeScheduler:
             config = DecisionTreeConfig()
         self.dataset_dir = dataset_dir
         self.data_generator = data_generator
+        self.X = None
+        self.Y = None
 
-    def prepare(self, norm=True, player_needed=False, game_needed=False):
+    def prepare(self, x_columns, y_column, norm=True, player_needed=False, game_needed=False, tracking_data_include=True, pff_data_include=True, drop_all_na=False):
         if self.data_generator is None:
             logger.info("Loading data...")
             tracking, pff, play, game, player, merge = load_data(self.dataset_dir)
             logger.info("Data loaded")
             self.data_generator = DataGenerator(tracking, pff, play, game, player, merge)
         logger.info("Generate and preprocess dataset...")
+        self.X, self.Y = self.data_generator.generate_dataset(x_columns, y_column, data_type='numpy', norm=norm, player_needed=player_needed, game_needed=game_needed,
+                                                              tracking_data_include=tracking_data_include, pff_data_include=pff_data_include, drop_all_na=drop_all_na)
 
-    def train(self, x_columns, y_column, split_ratio=0.2):
-        X, Y = self.data_generator.generate_dataset(x_columns, y_column, data_type='numpy', norm=True, player_needed=True)
+    def train(self, split_ratio=0.2):
         trainer = Trainer()
-        return trainer.train(X, Y, split_ratio)
+        return trainer.train(self.X, self.Y, split_ratio)
