@@ -30,7 +30,7 @@ logger.add(loguru_gradio_handler, level="DEBUG")
 server = None
 running = True
 exit_signal = False
-data_path = "../data"
+data_path = "../test_data"
 
 
 def on_reload(_data_path):

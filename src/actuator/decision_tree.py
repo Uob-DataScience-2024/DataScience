@@ -1,6 +1,10 @@
+import io
 from typing import Optional, Literal
 
+import numpy as np
+from PIL import Image
 from loguru import logger
+from matplotlib import pyplot as plt
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.metrics import accuracy_score
 from sklearn.preprocessing import MinMaxScaler
@@ -9,6 +13,8 @@ from sklearn.model_selection import train_test_split, KFold
 from ml.machine_learning import load_data
 from network.mutable_dataset import DataGenerator
 from utils.progress import CallbackProgress
+
+from sklearn.metrics import confusion_matrix, mean_squared_error
 
 
 class DecisionTreeConfig(dict):
@@ -50,7 +56,7 @@ class Trainer:
         Y_pred = self.model.predict(X_test)
         acc = accuracy_score(Y_test, Y_pred)
         logger.info(f"Accuracy: {acc * 100:.2f}%")
-        return acc
+        return acc, X_test, Y_test, Y_pred
 
     def train_kfold(self, X, Y, n_splits, progress):
         kf = KFold(n_splits=n_splits, shuffle=True, random_state=42)
@@ -69,8 +75,50 @@ class Trainer:
             acc = accuracy_score(Y_test, Y_pred)
             accs.append(acc * 100)
             progress.update(task, advance=1)
-            yield accs
+            yield accs, X_test, Y_test, Y_pred
         progress.remove_task(task)
+
+    def confusion_matrix(self, X, Y, Y_pred,  extra_info=""):
+        fig, ax = plt.subplots(figsize=(20, 12))
+        cm = confusion_matrix(Y, Y_pred)
+        cax = ax.matshow(cm, cmap='Blues')
+        fig.colorbar(cax)
+
+        ax.set_xlabel('Predicted labels')
+        ax.set_ylabel('True labels')
+        ax.set_title('Confusion Matrix')
+
+        ax.set_xticks(np.arange(cm.shape[1]))
+        ax.set_yticks(np.arange(cm.shape[0]))
+        ax.set_xticklabels(np.arange(cm.shape[1]))
+        ax.set_yticklabels(np.arange(cm.shape[0]))
+        ax.grid(which='both', color='gray', linestyle='-', linewidth=0.5)
+        for (i, j), val in np.ndenumerate(cm):
+            ax.text(j, i, f'{val}', ha='center', va='center',
+                    color='white' if cm[i, j] > cm.max()/2 else 'black',
+                    fontsize=12)  # 增加字体大小
+        plt.title(f'Confusion Matrix {"" if extra_info == "" else f"({extra_info})"}')
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        plt.close()
+        return Image.open(buf)
+
+    def feature_importance(self, cols, extra_info=""):
+        feature_importances = self.model.feature_importances_
+
+        fig = plt.figure(figsize=(16, 8))
+        plt.barh(range(len(feature_importances)), feature_importances, align='center')
+        plt.yticks(range(len(feature_importances)), cols)
+        plt.xlabel('Feature Importance')
+        plt.ylabel('Feature')
+        plt.title(f'Feature Importances in Decision Tree {"" if extra_info == "" else f"({extra_info})"}')
+        plt.show()
+        buf = io.BytesIO()
+        plt.savefig(buf, format='png')
+        buf.seek(0)
+        plt.close()
+        return Image.open(buf)
 
     def predict(self, X):
         return self.model.predict(X)
@@ -81,6 +129,7 @@ class Trainer:
 
 class DecisionTreeScheduler:
     def __init__(self, dataset_dir, data_generator: DataGenerator = None, config=None, on_new_task=None, on_update=None, on_remove=None):
+        self.x_columns = None
         if config is None:
             config = DecisionTreeConfig()
         self.dataset_dir = dataset_dir
@@ -99,16 +148,28 @@ class DecisionTreeScheduler:
             logger.info("Data loaded")
             self.data_generator = DataGenerator(tracking, pff, play, game, player, merge)
         logger.info("Generate and preprocess dataset...")
+        self.x_columns = x_columns
+        self.y_column = y_column
         self.X, self.Y = self.data_generator.generate_dataset(x_columns, y_column, data_type='numpy', norm=norm, player_needed=player_needed, game_needed=game_needed,
                                                               tracking_data_include=tracking_data_include, pff_data_include=pff_data_include, drop_all_na=drop_all_na)
 
     def train(self, split_ratio=0.2, cross_validation=False, n_splits=5):
-        with CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove) as progress:
-            if not cross_validation:
+        if not cross_validation:
+            trainer = Trainer()
+            acc, X_test, Y_test, Y_pred = trainer.train(self.X, self.Y, split_ratio)
+            conf_matrix = trainer.confusion_matrix(X_test, Y_test, Y_pred)
+            importance = trainer.feature_importance(self.x_columns)
+            yield f"Accuracy: {acc * 100:.2f}%", [conf_matrix], [importance]
+        else:
+            self.progress = CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove)
+            conf_matrixs = []
+            importances = []
+            with self.progress:
                 trainer = Trainer()
-                yield f"Accuracy: {trainer.train(self.X, self.Y, split_ratio) * 100:.2f}%"
-            else:
-                trainer = Trainer()
-                for item in trainer.train_kfold(self.X, self.Y, n_splits, progress):
+                for item, X_test, Y_test, Y_pred in trainer.train_kfold(self.X, self.Y, n_splits, self.progress):
                     avg = (sum(item) / len(item)) if len(item) > 0 else 0
-                    yield f"K-Fold result test acc: {avg:.3f}% - " + '/'.join(map(lambda x: f"{x:.3f}%", item))
+                    conf_matrix = trainer.confusion_matrix(X_test, Y_test, Y_pred, extra_info=f"Corss Validation Enabled")
+                    importance = trainer.feature_importance(self.x_columns, extra_info=f"Corss Validation Enabled")
+                    conf_matrixs.append(conf_matrix)
+                    importances.append(importance)
+                    yield f"K-Fold result test acc: {avg:.3f}% - " + '/'.join(map(lambda x: f"{x:.3f}%", item)), conf_matrixs, importances

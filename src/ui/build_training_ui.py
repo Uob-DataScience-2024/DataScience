@@ -322,8 +322,10 @@ def rf_ui(columns, data_generator, full_col, config_dir='configs/rf'):
             gr.Markdown("### Train")
             btn_train = gr.Button("Train", variant="primary")
             info = gr.Textbox("Training info", value="")
+            gallery_confusion_matrix = gr.Gallery(label="Confusion Matrix")
+            gallery_feature_importance = gr.Gallery(label="Feature Importance")
             t_event = btn_train.click(fn=
                                       lambda *x: (yield from train_rf(*x, data_generator=data_generator)), show_progress="minimal",
                                       inputs=[x_cols, y_col, split_ratio, n_estimators, min_samples_split, min_samples_leaf, bootstrap, criterion, min_impurity_decrease, oob_score, k_fold, norm,
                                               tracking_data_include, pff_data_include, player_needed, game_needed, drop_all_na],
-                                      outputs=[info])
+                                      outputs=[info, gallery_confusion_matrix, gallery_feature_importance])

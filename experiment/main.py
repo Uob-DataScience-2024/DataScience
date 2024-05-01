@@ -1,4 +1,5 @@
 from loguru import logger
+from matplotlib import pyplot as plt
 from rich.logging import RichHandler
 from tqdm.rich import tqdm
 
@@ -15,7 +16,7 @@ logger.configure(handlers=[{"sink": RichHandler(), "format": "{message}"}])
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 hyperparameters_model = {
-    'input_dim': 14,
+    'input_dim': 12,
     'hidden_dim': 256,
     'output_dim': 13,
     'batch_first': True,
@@ -24,7 +25,7 @@ hyperparameters_model = {
 }
 
 hyperparameters_training = {
-    'learning_rate': 0.001,
+    'learning_rate': 0.0001,
     'batch_size': 1,
     'num_epochs': 100,
     'split_ratio': 0.8,
@@ -79,13 +80,13 @@ def init_transformers():
 
 
 def main():
-    dataset = DatasetPffBlockTypeScore('../test_data', cache=True)
+    dataset = DatasetPffBlockTypeAutoSpilt('../test_data', cache=True)
     train_set, test_set = torch.utils.data.random_split(dataset,
                                                         [int(len(dataset) * hyperparameters_training['split_ratio']), len(dataset) - int(len(dataset) * hyperparameters_training['split_ratio'])])
     train_loader = torch.utils.data.DataLoader(train_set, batch_size=hyperparameters_training['batch_size'], shuffle=True, collate_fn=collate_fn)
     test_loader = torch.utils.data.DataLoader(test_set, batch_size=hyperparameters_training['batch_size'], shuffle=True, collate_fn=collate_fn)
 
-    model = Seq2SeqGRU(**hyperparameters_model)
+    model = Seq2Seq(**hyperparameters_model)
     model.to(device)
 
     criterion = torch.nn.MSELoss()
@@ -108,12 +109,26 @@ def main():
             losses.append(loss.item())
             accuracies.append(accuracy)
             progress.set_description_str(
-                f'Epoch [{epoch}/{hyperparameters_training["num_epochs"]}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy: {np.mean(accuracies) * 100:.2f}%')
+                f'Epoch [{epoch}/{hyperparameters_training["num_epochs"]}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy: {np.mean(accuracies[-10:]) * 100:.2f}%')
             if i % 5 == 0:
-                logger.info(f'Epoch [{epoch}/{hyperparameters_training["num_epochs"]}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy: {np.mean(accuracies) * 100:.2f}%')
-            if len(losses) > window:
-                losses.pop(0)
-                accuracies.pop(0)
+                logger.info(f'Epoch [{epoch}/{hyperparameters_training["num_epochs"]}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy: {np.mean(accuracies[-10:]) * 100:.2f}%')
+            # if len(losses) > window:
+            #     losses.pop(0)
+            #     accuracies.pop(0)
+            torch.cuda.empty_cache()
+
+        plt.plot(losses)
+        plt.xlabel('Steps')
+        plt.ylabel('Loss')
+        plt.title(f'Loss Curve(LSTM - PffBlockType)')
+        plt.show()
+
+        plt.plot(np.array(accuracies) * 100)
+        plt.xlabel('Steps')
+        plt.ylabel('Accuracy')
+        plt.title(f'Accuracy Curve(LSTM - PffBlockType)')
+        plt.show()
+
         test(model, criterion, test_loader)
 
 
@@ -167,18 +182,33 @@ def main_transformer():
             optimizer.step()
             output = torch.argmax(output, dim=2)
             target = torch.argmax(target, dim=2)
-            accuracy = (output == target)[target != 0].sum().item() / (output.shape[0] * output.shape[1])
+            accuracy = (output == target).sum().item() / (output.shape[0] * output.shape[1])
             losses.append(loss.item())
             accuracies.append(accuracy)
             progress.set_description_str(
-                f'Epoch [{epoch}/{hyperparameters_training["num_epochs"]}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy: {np.mean(accuracies) * 100:.2f}%')
+                f'Epoch [{epoch}/{hyperparameters_training["num_epochs"]}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy: {np.mean(accuracies[-10:]) * 100:.2f}%')
             if i % 5 == 0:
-                logger.info(f'Epoch [{epoch}/{hyperparameters_training["num_epochs"]}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy: {np.mean(accuracies) * 100:.2f}%')
-            if len(losses) > window:
-                losses.pop(0)
-                accuracies.pop(0)
-        # test(model, criterion, test_loader)
+                logger.info(f'Epoch [{epoch}/{hyperparameters_training["num_epochs"]}], Step [{i}/{len(train_loader)}], Loss: {np.mean(losses)}, Accuracy: {np.mean(accuracies[-10:]) * 100:.2f}%')
+            # if len(losses) > window:
+            #     losses.pop(0)
+            #     accuracies.pop(0)
+            # clean memory
+            torch.cuda.empty_cache()
+
+        # draw graph
+
+        plt.plot(losses)
+        plt.xlabel('Steps')
+        plt.ylabel('Loss')
+        plt.title('Loss Curve(Transformer - PffBlockType)')
+        plt.show()
+
+        plt.plot(np.array(accuracies) * 100)
+        plt.xlabel('Steps')
+        plt.ylabel('Accuracy')
+        plt.title('Accuracy Curve(Transformer - PffBlockType)')
+        plt.show()
 
 
 if __name__ == '__main__':
-    main()
+    main_transformer()

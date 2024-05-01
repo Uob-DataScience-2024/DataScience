@@ -205,7 +205,8 @@ class DatasetPffBlockTypeAutoSpilt(Dataset):
             'play': self.load_play_data()
         }
         self.postprocess(cache)
-        self.total_data = [self.final_data[game] for game in self.final_data]
+        self.total_data = [self.final_data[game].dropna(subset=[*x_col]) for game in self.final_data]
+        # self.total_data = [self.final_data[game] for game in self.final_data]
         self.x_col = x_col
         self.x_category_col = x_category_col
         self.x_self_category_col = x_self_category_col
@@ -370,14 +371,15 @@ class DatasetPffBlockTypeAutoSpilt(Dataset):
         return results, F.one_hot(label.long(), num_classes=len(self.category_table[self.y_col])).to(torch.float32)
 
 
-
-
 class DatasetPffBlockTypeScore(Dataset):
     def __init__(self, data_dir, pff_filename='pffScoutingData.csv', tracking_filename='week{}.csv', play_data_filename="plays.csv", games_file="games.csv", cache=False,
                  x_col=['nflId_x', 'frameId', 'jerseyNumber', 'team', 'playDirection', 'x', 'y', 's', 'a', 'dis', 'o', 'dir',
-                        'pff_role', 'pff_positionLinedUp', 'pff_hit', 'pff_hurry', 'pff_sack', 'pff_beatenByDefender', 'pff_hitAllowed', 'pff_hurryAllowed', 'pff_sackAllowed', 'pff_nflIdBlockedPlayer', 'pff_blockType'],
-                 x_category_col=['nflId_x', 'jerseyNumber', 'team', 'playDirection', 'pff_role', 'pff_positionLinedUp', 'pff_hit', 'pff_hurry', 'pff_sack', 'pff_beatenByDefender', 'pff_hitAllowed', 'pff_hurryAllowed', 'pff_sackAllowed', 'pff_nflIdBlockedPlayer', 'pff_blockType'],
-                 x_self_category_col=['nflId_x', 'pff_role', 'pff_positionLinedUp', 'pff_hit', 'pff_hurry', 'pff_sack', 'pff_beatenByDefender', 'pff_hitAllowed', 'pff_hurryAllowed', 'pff_sackAllowed', 'pff_nflIdBlockedPlayer', 'pff_blockType'],
+                        'pff_role', 'pff_positionLinedUp', 'pff_hit', 'pff_hurry', 'pff_sack', 'pff_beatenByDefender', 'pff_hitAllowed', 'pff_hurryAllowed', 'pff_sackAllowed',
+                        'pff_nflIdBlockedPlayer', 'pff_blockType'],
+                 x_category_col=['nflId_x', 'jerseyNumber', 'team', 'playDirection', 'pff_role', 'pff_positionLinedUp', 'pff_hit', 'pff_hurry', 'pff_sack', 'pff_beatenByDefender', 'pff_hitAllowed',
+                                 'pff_hurryAllowed', 'pff_sackAllowed', 'pff_nflIdBlockedPlayer', 'pff_blockType'],
+                 x_self_category_col=['nflId_x', 'pff_role', 'pff_positionLinedUp', 'pff_hit', 'pff_hurry', 'pff_sack', 'pff_beatenByDefender', 'pff_hitAllowed', 'pff_hurryAllowed', 'pff_sackAllowed',
+                                      'pff_nflIdBlockedPlayer', 'pff_blockType'],
                  y_col='preSnapHomeScore'):
         self.category_table = None
         self.data_dir = data_dir
