@@ -31,6 +31,14 @@ def convertTimeToNumerical(t):
     return int(t[0]) * 3600 + int(t[1]) * 60 + int(t[2])
 
 
+def sort_personnel(content):
+    if len(content.split(',')) == 1:
+        return content
+    temp = content.split(',')
+    temp.sort()
+    return ','.join(temp)
+
+
 class DataGenerator:
     def __init__(self, tracking: TrackingNormData, pff: PffNormData, play: PlayNormData, game: GameNormData, player: PlayerNormData, merge: MergeNormData):
         self.tracking = tracking
@@ -45,7 +53,8 @@ class DataGenerator:
                          game_needed=False, dropna_y=True, drop_all_na=True,
                          with_mapping_log=False):
         if data_type_mapping is None:
-            data_type_mapping = {'gameClock': convertTimeToNumerical, 'height': heightInches}
+            data_type_mapping = {'gameClock': convertTimeToNumerical, 'height': heightInches, 'personnelD': sort_personnel, 'personnelO': sort_personnel}
+        non_skip = ['personnelD', 'personnelO']
         if data_type_mapping_inverse is None:
             data_type_mapping_inverse = {'height': lambda x: f"{int(x // 12)}-{int(x % 12)}", 'gameClock': lambda x: f"{int(x // 60)}:{int(x % 60)}"}
         loaded_data = ['play']
@@ -74,7 +83,8 @@ class DataGenerator:
             if col in data_type_mapping:
                 df[col] = df[col].apply(data_type_mapping[col])
                 mapping_log[col] = {'type': 'function', 'mapping': data_type_mapping[col]}
-                continue
+                if col not in non_skip:
+                    continue
             if pd.api.types.is_string_dtype(dtype):
                 labels = df[col].unique()
                 labels.sort()
