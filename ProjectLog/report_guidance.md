@@ -40,7 +40,8 @@ Due to the dataset being divided into several data files and types, with some ID
 - playId is not unique across games in the tracking data.
 - In the tracking data for each game, nflId+playId cannot serve as a unique identifier.
 - In the scouting data for each game, nflId+playId can serve as a unique identifier and will not be repeated.
-- When filtering for the same playId+gameId in the tracking data for a single game, it was observed that frameId is a continuous number, leading to the inference that playId may represent a stage within the game, as the corresponding timestamp span is only around 3.821s (a mean value, with a maximum of 8s and a minimum of 2.6s).
+- When filtering for the same playId+gameId in the tracking data for a single game, it was observed that frameId is a continuous number, leading to the inference that playId may represent a stage within the game, as the corresponding timestamp span is only around 4.1s (a mean value, with a maximum of 20s and a minimum of 1.8s).
+- ![Pasted%20image%2020240501005922.png](1919810/Pasted%20image%2020240501005922.png)
 - Therefore, based on the above facts, it can be concluded that the combined ID consisting of nflId+playId from the scouting data for each game can correspond to a time segment within that game, with an average duration of only 3.8 seconds, which is reasonable and usable as a data merging approach.
 - Initial exploration revealed that the unique playId lists in plays.csv and the tracking data for a single game are identical, implying that the data can be associated.
 
@@ -219,11 +220,17 @@ Details:
 
 In the initial stage of our technical approach, we first chose to experiment with LSTM/GRU neural networks. The experimental dataset included trackingdata as the input features and pffblocktype as the target label feature. For this sequence labeling task, we conducted a series of experiments:
 
+![Pasted%20image%2020240501014908.png](1919810/Pasted%20image%2020240501014908.png)
+![Pasted%20image%2020240501014919.png](1919810/Pasted%20image%2020240501014919.png)
+![Pasted%20image%2020240501015148.png](1919810/Pasted%20image%2020240501015148.png)
+![Pasted%20image%2020240501015155.png](1919810/Pasted%20image%2020240501015155.png)
+
 The first experiment showed that the model achieved an accuracy of 80% on the test set. Through further tuning of hyperparameters and model architecture, we ultimately attained 94% accuracy on the test set. Subsequently, we attempted to segment the input data sequences. The experimental results indicated that this operation did not adversely affect the model's accuracy but did accelerate the training process.
 
 Additionally, we explored the performance of the Transformer model on this task, with the following experimental overview:
 - Based on the existing LSTM/GRU model, we implemented the Transformer model architecture to test its performance.
 - The experimental results showed that the Transformer model performed inferior to the LSTM/GRU model.
+- ![Pasted%20image%2020240501013441.png](1919810/Pasted%20image%2020240501013441.png)
 - Experimental analysis and conclusions:
    1) During training, the Transformer model exhibited a slower convergence rate, and its accuracy improvement was relatively gradual.
    2) Due to the architectural characteristics of the Transformer model, it may not be well-suited to the current dataset features, thus underperforming compared to the LSTM/GRU model.
@@ -238,6 +245,7 @@ We conducted some experiments on win-rate models:
 
 - Experiment Overview: Implemented a model to predict the winner of a game.
 - Experimental Results: Failed
+- ![Pasted%20image%2020240501024253.png](1919810/Pasted%20image%2020240501024253.png)
 - Experimental Conclusions:
   - The experiment attempted to determine whether the home team won a game based on the 'preSnapHomeScore' and 'preSnapVisitorScore' columns in the playdata. However, it became evident that training a sequence classification model on this data was unsuccessful.
   - To rule out potential design flaws in the sequence classification model, we tested an alternative approach where the sequence labeling model was tasked with predicting the home team's score. This attempt also failed, despite incorporating additional information from other pff data.
@@ -286,12 +294,15 @@ To comprehensively explore potential patterns and relationships within the NFL d
 
 #### Experimental Setup
 - The input feature set included passResult.json, personnelD.json, personnelO.json, pff_passCoverage.json, pff_passCoverageType.json, pff_playAction.json, pff_positionLinedUp.json, pff_role.json, playResult.json, and prePenaltyPlayResult.json.
+- ![Pasted%20image%2020240501025304.png](1919810/Pasted%20image%2020240501025304.png)
+- ![Pasted%20image%2020240501025408.png](1919810/Pasted%20image%2020240501025408.png)
 - The models took tracking data as the base input and performed sequence modeling and prediction on the aforementioned features.
 - The experiments employed a control variable approach, systematically adjusting the target features to evaluate the model's predictive performance across different features.
 
 #### Experimental Results
-- The model achieved its best performance in predicting the pff_role feature, reaching an accuracy of 76% after 5 training epochs, with an expected accuracy exceeding 94% after further training.
-- For the pff_playAction feature, the model attained an accuracy of 63% after 5 epochs, with no observable improvement, necessitating further model optimization.
+- ![Pasted%20image%2020240501025019.png](1919810/Pasted%20image%2020240501025019.png)
+- The model achieved its best performance in predicting the pff_role feature, reaching an accuracy of 83.8% after 5 training epochs, with an expected accuracy exceeding 94% after further training.
+- For the pff_playAction feature, the model attained an accuracy of 68.6% after 5 epochs, with no observable improvement, necessitating further model optimization.
 - For most other features, the model based on tracking data failed to learn effective prediction patterns.
 
 #### Experimental Summary
@@ -303,7 +314,9 @@ So, in the following chapter 4, We will attempt another direction: non-sequentia
 
 A simple description of the work done in Chapter 3. 
 
-Then explain that after restructuring the Data Loader (i.e. the second version of the Data Loader in 2.4 Reusable Data Loader: Automated Data Preprocessing), we discovered the reason for the poor performance of time series training, which was the pollution caused by N/A values in the time series. Although the data is sequential, this dataset is not suitable for sequential training. At the same time, we found in the experiments that the GameClock data can achieve good results using non-sequential training models. We will discuss this in detail in the next Chapter 4.
+Then explain that after restructuring the Data Loader (i.e. the second version of the Data Loader in 2.4 Reusable Data Loader: Automated Data Preprocessing), we discovered the reason for the poor performance of time series training, which was the pollution caused by N/A values in the time series. 
+![Pasted%20image%2020240501030447.png](1919810/Pasted%20image%2020240501030447.png)
+Although the data is sequential, this dataset is not suitable for sequential training. At the same time, we found in the experiments that the GameClock data can achieve good results using non-sequential training models. We will discuss this in detail in the next Chapter 4.
 
 # Chapter 4 Data Modelling
 
@@ -347,8 +360,6 @@ In this section, introduce the Random Forest Model.
 In this section, introduce the Multilayer Perceptron.
 
 ## 4.4 Easy-to-use Application Building
-
-
 
 Can refer to:
 
@@ -401,12 +412,6 @@ K-fold Cross Validation is a model evaluation technique that helps mitigate the 
 In this project, our application allows users to freely select the value of K for K-fold Cross Validation. This flexibility enables users to experiment with different values of K and assess the impact on model performance and stability. Typically, values of K between 5 and 10 are commonly used, with 10-fold Cross Validation being a popular choice as it strikes a balance between computational cost and variance reduction. However, users can explore different K values based on their specific requirements, dataset size, and computational resources available.
 
 ### 4.x.x Visualisation
-
-
-
-# Additional Content and Explanations(for subsequent chapters):
-
-# Results and Discussion Chapter Guidance.
 
 
 
