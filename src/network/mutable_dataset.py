@@ -40,7 +40,8 @@ class DataGenerator:
         self.player = player
         self.merge = merge
 
-    def generate_dataset(self, x_columns, y_column, data_type='numpy', data_type_mapping=None, data_type_mapping_inverse=None, norm=False, tracking_data_include=True, pff_data_include=True, player_needed=False,
+    def generate_dataset(self, x_columns, y_column, data_type='numpy', data_type_mapping=None, data_type_mapping_inverse=None, norm=False, tracking_data_include=True, pff_data_include=True,
+                         player_needed=False,
                          game_needed=False, dropna_y=True, drop_all_na=True,
                          with_mapping_log=False):
         if data_type_mapping is None:
@@ -50,10 +51,10 @@ class DataGenerator:
         loaded_data = ['play']
         df = self.play.data.copy()
         if tracking_data_include:
-            df = df.merge(self.tracking.data, on=['gameId', 'playId', 'nflId'], how='left')
+            df = df.merge(self.tracking.data, on=['gameId', 'playId'], how='left')
             loaded_data += ['tracking']
         if pff_data_include:
-            df = df.merge(self.pff.data, on=['gameId', 'playId'], how='left')
+            df = df.merge(self.pff.data, on=['gameId', 'playId'] + [] if not tracking_data_include else ['nflId'], how='left')
             loaded_data += ['pff']
         if player_needed:
             df = df.merge(self.merge.player, on='nflId', how='left')
