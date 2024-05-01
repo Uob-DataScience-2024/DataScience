@@ -78,7 +78,7 @@ class Trainer:
             yield accs, X_test, Y_test, Y_pred
         progress.remove_task(task)
 
-    def confusion_matrix(self, X, Y, Y_pred,  extra_info=""):
+    def confusion_matrix(self, X, Y, Y_pred, labels, extra_info=""):
         fig, ax = plt.subplots(figsize=(20, 12))
         cm = confusion_matrix(Y, Y_pred)
         cax = ax.matshow(cm, cmap='Blues')
@@ -95,7 +95,7 @@ class Trainer:
         ax.grid(which='both', color='gray', linestyle='-', linewidth=0.5)
         for (i, j), val in np.ndenumerate(cm):
             ax.text(j, i, f'{val}', ha='center', va='center',
-                    color='white' if cm[i, j] > cm.max()/2 else 'black',
+                    color='white' if cm[i, j] > cm.max() / 2 else 'black',
                     fontsize=12)  # 增加字体大小
         plt.title(f'Confusion Matrix {"" if extra_info == "" else f"({extra_info})"}')
         buf = io.BytesIO()
@@ -129,6 +129,9 @@ class Trainer:
 
 class DecisionTreeScheduler:
     def __init__(self, dataset_dir, data_generator: DataGenerator = None, config=None, on_new_task=None, on_update=None, on_remove=None):
+        self.progress = None
+        self.data_type_mapping_inverse = None
+        self.mapping_log = None
         self.x_columns = None
         if config is None:
             config = DecisionTreeConfig()
@@ -150,14 +153,28 @@ class DecisionTreeScheduler:
         logger.info("Generate and preprocess dataset...")
         self.x_columns = x_columns
         self.y_column = y_column
-        self.X, self.Y = self.data_generator.generate_dataset(x_columns, y_column, data_type='numpy', norm=norm, player_needed=player_needed, game_needed=game_needed,
-                                                              tracking_data_include=tracking_data_include, pff_data_include=pff_data_include, drop_all_na=drop_all_na)
+        self.X, self.Y, self.mapping_log, self.data_type_mapping_inverse = self.data_generator.generate_dataset(x_columns, y_column, data_type='numpy', norm=norm, player_needed=player_needed,
+                                                                                                                game_needed=game_needed,
+                                                                                                                tracking_data_include=tracking_data_include, pff_data_include=pff_data_include,
+                                                                                                                drop_all_na=drop_all_na, with_mapping_log=True)
+
+    def value_remapping(self, d, c):
+        if c in self.mapping_log:
+            if self.mapping_log[c]['type'] == 'category':
+                d = self.mapping_log[c]['mapping'][d]
+            if self.mapping_log[c]['type'] == 'numeric':
+                d = d * (self.mapping_log[c]['mapping']['max'] - self.mapping_log[c]['mapping']['min']) + self.mapping_log[c]['mapping']['min']
+            if self.mapping_log[c]['type'] == 'function':
+                d = self.data_type_mapping_inverse[c](d)
+        return d
 
     def train(self, split_ratio=0.2, cross_validation=False, n_splits=5):
         if not cross_validation:
-            trainer = Trainer()
+            trainer = Trainer(self.config['n_estimators'], self.config['min_samples_split'], self.config['min_samples_leaf'], self.config['bootstrap'], self.config['criterion'],
+                              self.config['min_impurity_decrease'], self.config['oob_score'])
             acc, X_test, Y_test, Y_pred = trainer.train(self.X, self.Y, split_ratio)
-            conf_matrix = trainer.confusion_matrix(X_test, Y_test, Y_pred)
+            labels = list(map(lambda x: self.value_remapping(x, self.y_column), Y_test))
+            conf_matrix = trainer.confusion_matrix(X_test, Y_test, Y_pred, labels)
             importance = trainer.feature_importance(self.x_columns)
             yield f"Accuracy: {acc * 100:.2f}%", [conf_matrix], [importance]
         else:
@@ -165,10 +182,12 @@ class DecisionTreeScheduler:
             conf_matrixs = []
             importances = []
             with self.progress:
-                trainer = Trainer()
+                trainer = Trainer(self.config['n_estimators'], self.config['min_samples_split'], self.config['min_samples_leaf'], self.config['bootstrap'], self.config['criterion'],
+                                  self.config['min_impurity_decrease'], self.config['oob_score'])
                 for item, X_test, Y_test, Y_pred in trainer.train_kfold(self.X, self.Y, n_splits, self.progress):
                     avg = (sum(item) / len(item)) if len(item) > 0 else 0
-                    conf_matrix = trainer.confusion_matrix(X_test, Y_test, Y_pred, extra_info=f"Corss Validation Enabled")
+                    labels = list(map(lambda x: self.value_remapping(x, self.y_column), Y_test))
+                    conf_matrix = trainer.confusion_matrix(X_test, Y_test, Y_pred, labels, extra_info=f"Corss Validation Enabled")
                     importance = trainer.feature_importance(self.x_columns, extra_info=f"Corss Validation Enabled")
                     conf_matrixs.append(conf_matrix)
                     importances.append(importance)
