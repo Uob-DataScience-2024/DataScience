@@ -80,7 +80,7 @@ class Trainer:
 
     def confusion_matrix(self, X, Y, Y_pred, labels, extra_info=""):
         fig, ax = plt.subplots(figsize=(20, 12))
-        cm = confusion_matrix(Y, Y_pred)
+        cm = confusion_matrix(Y, Y_pred, labels=labels)
         cax = ax.matshow(cm, cmap='Blues')
         fig.colorbar(cax)
 
@@ -90,8 +90,13 @@ class Trainer:
 
         ax.set_xticks(np.arange(cm.shape[1]))
         ax.set_yticks(np.arange(cm.shape[0]))
-        ax.set_xticklabels(np.arange(cm.shape[1]))
-        ax.set_yticklabels(np.arange(cm.shape[0]))
+
+        # ax.set_xticklabels(np.arange(cm.shape[1]))
+        # ax.set_yticklabels(np.arange(cm.shape[0]))
+
+        ax.set_xticklabels(labels, rotation=90)
+        ax.set_yticklabels(labels)
+
         ax.grid(which='both', color='gray', linestyle='-', linewidth=0.5)
         for (i, j), val in np.ndenumerate(cm):
             ax.text(j, i, f'{val}', ha='center', va='center',
@@ -173,8 +178,10 @@ class DecisionTreeScheduler:
             trainer = Trainer(self.config['n_estimators'], self.config['min_samples_split'], self.config['min_samples_leaf'], self.config['bootstrap'], self.config['criterion'],
                               self.config['min_impurity_decrease'], self.config['oob_score'])
             acc, X_test, Y_test, Y_pred = trainer.train(self.X, self.Y, split_ratio)
-            labels = list(map(lambda x: self.value_remapping(x, self.y_column), Y_test))
-            conf_matrix = trainer.confusion_matrix(X_test, Y_test, Y_pred, labels)
+            # labels = list(map(lambda x: self.value_remapping(x, self.y_column), Y_test))
+            labels = list(self.mapping_log[self.y_column]['mapping'].values())
+            # conf_matrix = trainer.confusion_matrix(X_test, Y_test, Y_pred, labels)
+            conf_matrix = trainer.confusion_matrix(X_test,  list(map(lambda x: self.value_remapping(x, self.y_column), Y_test)),  list(map(lambda x: self.value_remapping(x, self.y_column), Y_pred)), labels)
             importance = trainer.feature_importance(self.x_columns)
             yield f"Accuracy: {acc * 100:.2f}%", [conf_matrix], [importance]
         else:
@@ -186,9 +193,11 @@ class DecisionTreeScheduler:
                                   self.config['min_impurity_decrease'], self.config['oob_score'])
                 for item, X_test, Y_test, Y_pred in trainer.train_kfold(self.X, self.Y, n_splits, self.progress):
                     avg = (sum(item) / len(item)) if len(item) > 0 else 0
-                    labels = list(map(lambda x: self.value_remapping(x, self.y_column), Y_test))
-                    conf_matrix = trainer.confusion_matrix(X_test, Y_test, Y_pred, labels, extra_info=f"Corss Validation Enabled")
+                    # labels = list(map(lambda x: self.value_remapping(x, self.y_column), Y_test))
+                    labels = list(self.mapping_log[self.y_column]['mapping'].values())
+                    # conf_matrix = trainer.confusion_matrix(X_test, Y_test, Y_pred, labels, extra_info=f"Corss Validation Enabled")
                     importance = trainer.feature_importance(self.x_columns, extra_info=f"Corss Validation Enabled")
+                    conf_matrix = trainer.confusion_matrix(X_test,  list(map(lambda x: self.value_remapping(x, self.y_column), Y_test)),  list(map(lambda x: self.value_remapping(x, self.y_column), Y_pred)), labels)
                     conf_matrixs.append(conf_matrix)
                     importances.append(importance)
                     yield f"K-Fold result test acc: {avg:.3f}% - " + '/'.join(map(lambda x: f"{x:.3f}%", item)), conf_matrixs, importances
