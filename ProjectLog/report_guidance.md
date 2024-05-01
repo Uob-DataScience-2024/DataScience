@@ -413,6 +413,44 @@ In this project, our application allows users to freely select the value of K fo
 
 ### 4.x.x Visualisation
 
+#### 4.x.x.x Visualisation of Game Data in Video Format
+
+can refer to:
+
+To facilitate a comprehensive understanding of the game dynamics, we implemented fundamental data visualisation capabilities, enabling the playback of tracking data in an intuitive video format. This feature allows users to observe the temporal progression of events and interactions within a game.
+
+Moreover, we incorporated functionality to generate MP4 video files from the visualised data. This feature empowers users to seamlessly record and share their analysis, fostering collaboration and knowledge dissemination within the broader community.
+
+Recognising the importance of user-friendly interfaces, we integrated the aforementioned visualisation capabilities into our application's user interface (UI). Users can effortlessly select the specific data components they wish to visualise, enhancing the customisability and flexibility of the analysis process.
+
+Furthermore, we implemented a comprehensive data display feature within the UI, enabling users to showcase an arbitrary number of data columns concurrently. This feature is complemented by a templating system, further elevating the level of customisation and personalisation available to users, ensuring that the visualisation aligns with their specific requirements and preferences.
+
+#### 4.x.x.x Output Data Analysis and Visualisation
+
+Details:
+- Average prePenaltyPlayResult across all teams 
+- Frequency distribution plots of PassResult for each team
+- For each team, a defensive configuration chart based on a specified offensive formation (including defndersInBox, personnelD, pff passCoverage, and pff passCoverageType)
+- User Interface (UI)
+- Defensive Configuration Visualisation: For each team, a defensive configuration chart based on a specified offensive setup (optional offenseFormation and personnelO), including defndersInBox, personnelD, pff passCoverage, and pff passCoverageType.
+- Single-Chart Information Statistics: Allows generating frequency distribution plots of prePenaltyPlayResult and passResult for each team.
+- Multi-Team Single-Chart Information Statistics: For a selected feature (e.g., formations win/lose/draw), a plot is generated with each sub-plot corresponding to the data of an individual team.
+
+The code was integrated into the UI, providing a certain degree of flexibility, such as the ability to generate specific charts and specify team plots during chart creation. Additionally, confusion matrices were implemented.
+
+#### 4.x.x.x Feature Attribution Analysis for Neural Networks
+
+Details:
+
+This component focuses on analysing the trained neural network models. We designed a suite of tools that leverages the **Captum** library to compute the contribution weights of each input feature, enabling the analysis of which features had a more significant impact on the model's predictions. This analysis facilitates further insights and understanding of the model's behaviour.
+
+This feature has been implemented in the neural network training UI. Upon completing the training process, users can perform input feature contribution analysis on the trained neural network model. The analysis supports either considering only the correctly classified labels or selectively examining the input feature contributions for each chosen class: eg.
+
+![20240501174813.png](1919810/20240501174813.png)
+
+The tool allows users to directly select the label values they wish to compute and set an upper limit on the number of sampling iterations. A higher number of sampling iterations results in a more objective representation of the model's behaviour.
+
+Through this feature attribution analysis, we aim to provide a comprehensive understanding of the trained neural network models, enabling users to identify the most influential input features and gain insights into the model's decision-making process. This analysis can inform further model refinement, feature engineering, and interpretation efforts, ultimately leading to more robust and explainable neural network models.
 
 
 
