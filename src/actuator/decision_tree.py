@@ -15,6 +15,7 @@ from network.mutable_dataset import DataGenerator
 from utils.progress import CallbackProgress
 
 from sklearn.metrics import confusion_matrix, mean_squared_error
+import cache
 
 
 class DecisionTreeConfig(dict):
@@ -181,11 +182,13 @@ class DecisionTreeScheduler:
             # labels = list(map(lambda x: self.value_remapping(x, self.y_column), Y_test))
             labels = list(self.mapping_log[self.y_column]['mapping'].values())
             # conf_matrix = trainer.confusion_matrix(X_test, Y_test, Y_pred, labels)
-            conf_matrix = trainer.confusion_matrix(X_test,  list(map(lambda x: self.value_remapping(x, self.y_column), Y_test)),  list(map(lambda x: self.value_remapping(x, self.y_column), Y_pred)), labels)
+            conf_matrix = trainer.confusion_matrix(X_test, list(map(lambda x: self.value_remapping(x, self.y_column), Y_test)), list(map(lambda x: self.value_remapping(x, self.y_column), Y_pred)),
+                                                   labels)
             importance = trainer.feature_importance(self.x_columns)
             yield f"Accuracy: {acc * 100:.2f}%", [conf_matrix], [importance]
         else:
-            self.progress = CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove)
+            # self.progress = CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove)
+            self.progress = cache.progress
             conf_matrixs = []
             importances = []
             with self.progress:
@@ -197,7 +200,8 @@ class DecisionTreeScheduler:
                     labels = list(self.mapping_log[self.y_column]['mapping'].values())
                     # conf_matrix = trainer.confusion_matrix(X_test, Y_test, Y_pred, labels, extra_info=f"Corss Validation Enabled")
                     importance = trainer.feature_importance(self.x_columns, extra_info=f"Corss Validation Enabled")
-                    conf_matrix = trainer.confusion_matrix(X_test,  list(map(lambda x: self.value_remapping(x, self.y_column), Y_test)),  list(map(lambda x: self.value_remapping(x, self.y_column), Y_pred)), labels)
+                    conf_matrix = trainer.confusion_matrix(X_test, list(map(lambda x: self.value_remapping(x, self.y_column), Y_test)),
+                                                           list(map(lambda x: self.value_remapping(x, self.y_column), Y_pred)), labels)
                     conf_matrixs.append(conf_matrix)
                     importances.append(importance)
                     yield f"K-Fold result test acc: {avg:.3f}% - " + '/'.join(map(lambda x: f"{x:.3f}%", item)), conf_matrixs, importances

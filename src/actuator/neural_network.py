@@ -13,7 +13,7 @@ from utils.tools import load_data
 from utils.training_config import ModelHyperparameters, OptimizerHyperparameters, TrainingConfigure
 from network.mutable_dataset import SimpleDataset, DataGenerator
 from matplotlib import pyplot as plt
-
+import cache
 
 class Trainer:
     def __init__(self, model: nn.Module, optimizer, criterion, device='cuda'):
@@ -232,7 +232,8 @@ class NeuralNetworkScheduler:
         self.train_loader = train_loader
         self.test_loader = test_loader
         logger.info("Start training...")
-        self.progress = CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove)
+        # self.progress = CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove)
+        self.progress = cache.progress
         with self.progress:
             yield from self.trainner.train(train_loader, test_loader, epochs, self.progress, display_window=display_window, regression_task=regression_task,
                                            regression_allow_diff=regression_allow_diff)
@@ -243,7 +244,8 @@ class NeuralNetworkScheduler:
         logger.info("Splitting dataset...")
         splits = self.k_fold_cross_val_split(self.dataset, k_folds=k_folds)
         logger.info("Start training...")
-        self.progress = CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove)
+        # self.progress = CallbackProgress(new_progress=self.on_new_task, update=self.on_update, remove_progress=self.on_remove)
+        self.progress = cache.progress
         with self.progress:
             task_k_fold = self.progress.add_task(f"K-Fold Cross Validation", total=k_folds)
             for fold in range(k_folds):

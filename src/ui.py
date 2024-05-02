@@ -3,7 +3,9 @@ import sys
 import time
 
 from ui.special_figs import analysis_ui
+from ui.tools import ProcessManager
 from ui.visual import visual_ui
+from utils.progress import CallbackProgress
 
 start_import = time.time()
 
@@ -14,7 +16,7 @@ from loguru import logger
 from network.mutable_dataset import DataGenerator
 from ui.build_training_ui import nn_ui, rf_ui
 from utils.tools import load_data
-
+import cache
 logger.info(f"Import time: {time.time() - start_import:.2f}s")
 
 
@@ -30,7 +32,7 @@ logger.add(loguru_gradio_handler, level="DEBUG")
 server = None
 running = True
 exit_signal = False
-data_path = "../test_data"
+data_path = "../data"
 
 
 def on_reload(_data_path):
@@ -104,8 +106,10 @@ def init_ui(tracking, pff, play, game, player, merge):
 #         self.block.lunch()
 
 
-def main(args):
+def main():
     global running, exit_signal, data_path
+    progress_manager = ProcessManager(disable=False)
+    cache.progress = CallbackProgress(new_progress=progress_manager.on_new_task, update=progress_manager.on_update, remove_progress=progress_manager.on_remove)
     while not exit_signal:
         logger.info("Load init data...")
         tracking, pff, play, game, player, merge = load_data(data_path)
@@ -126,13 +130,5 @@ def main(args):
         logger.info("UI closed")
 
 
-def parse():
-    parser = argparse.ArgumentParser(description='NFL Big Data Bowl')
-    parser.add_argument('--data_path', type=str, default='../test_data', help='Path to data folder')
-    # parser.add_argument('--default_weeks', type=int, default=1, help='Default weeks to load')
-    args = parser.parse_args()
-    return args
-
-
 if __name__ == "__main__":
-    main(parse())
+    main()
