@@ -13,18 +13,22 @@ from ui.tools import ProcessManager, load_config, save_config
 from utils import TrainingConfigure
 import matplotlib.pyplot as plt
 import io
+from utils.progress import CallbackProgress
 
-scheduler: NeuralNetworkScheduler = None
+# scheduler: NeuralNetworkScheduler = None
+progress_manager = ProcessManager(disable=False)
+# cache.progress = CallbackProgress(progress_manager.on_new_task, progress_manager.on_update, progress_manager.on_remove)
 
 
 def train_nn(
+        scheduler,
         x_cols: list, y_col: str, num_classes: int,
         model: str, optimizer: str, criterion: str,
         epochs: int, batch_size: int, learning_rate: float, split_ratio: float, k_fold: int,
         gpu: bool = False, norm: bool = False, tracking_data_include: bool = True, pff_data_include: bool = False, player_needed: bool = False, game_needed: bool = False, drop_all_na: bool = False,
         data_generator: DataGenerator = None):
-    global scheduler
-    progress_manager = ProcessManager(disable=False)
+    # global scheduler
+
     config = TrainingConfigure(
         input_features=x_cols, target_feature=y_col,
         model=model, training_hyperparameters={
@@ -41,7 +45,7 @@ def train_nn(
     scheduler.prepare(norm=norm, tracking_data_include=tracking_data_include, pff_data_include=pff_data_include, player_needed=player_needed, game_needed=game_needed, drop_all_na=drop_all_na)
     for i, (text, image) in enumerate(scheduler.train(epochs, batch_size, split_ratio) if k_fold == 0 else scheduler.train_k_fold(epochs, batch_size, split_ratio, k_folds=k_fold)):
         gr.Info(f"Training {i}/{epochs} epoch...[{(i + 1) / epochs * 100:.2f}%]")
-        yield text, *image
+        yield text, *image, scheduler
 
 
 def draw_heat_map_for_line(array, title):
@@ -54,16 +58,16 @@ def draw_heat_map_for_line(array, title):
     return Image.open(buf)
 
 
-def call_feature_analysis(input_cols, limit=10):
+def call_feature_analysis(scheduler, input_cols, limit=10):
     result = scheduler.input_features_analysis(limit)
     result *= 100
     df = pd.DataFrame([list(map(lambda x: f"{x:.3f}%", result.tolist()))], columns=input_cols)
     return df, [draw_heat_map_for_line(result, "Feature Importance")]
 
 
-def call_feature_analysis_target(input_cols, labels, targets, limit=10):
+def call_feature_analysis_target(scheduler, input_cols, labels, targets, limit=10):
     if targets is None or len(targets) == 0:
-        return call_feature_analysis(input_cols, limit)
+        return call_feature_analysis(scheduler, input_cols, limit)
     labels.sort()
     results = scheduler.input_features_analysis_with_target(limit, labels, targets)
     data = []
@@ -78,7 +82,7 @@ def call_feature_analysis_target(input_cols, labels, targets, limit=10):
     return df, [draw_heat_map_for_line(value, key) for key, value in results.items()]
 
 
-def value_remapping(d, c):
+def value_remapping(scheduler, d, c):
     if c in scheduler.data_mapping_log:
         if scheduler.data_mapping_log[c]['type'] == 'category':
             d = scheduler.data_mapping_log[c]['mapping'][d]
@@ -89,7 +93,7 @@ def value_remapping(d, c):
     return d
 
 
-def get_data(index, input_cols, y_col):
+def get_data(scheduler, index, input_cols, y_col):
     indexes = index.split(',')
     indexes = list(map(int, indexes))
     y_list = []
@@ -99,17 +103,17 @@ def get_data(index, input_cols, y_col):
         x = x.numpy().tolist()
         x_new = []
         for d, c in zip(x, input_cols):
-            d = value_remapping(d, c)
+            d = value_remapping(scheduler, d, c)
             x_new.append(d)
 
-        y = value_remapping(y.item(), y_col)
+        y = value_remapping(scheduler, y.item(), y_col)
         y_list.append(y)
         x_list.append(x_new)
     df = pd.DataFrame(x_list, columns=input_cols)
     return df, '; '.join(y_list)
 
 
-def predict_nn(index, labels):
+def predict_nn(scheduler, index, labels):
     indexes = index.split(',')
     indexes = list(map(int, indexes))
     labels.sort()
@@ -146,7 +150,6 @@ def train_rf(
         norm: bool = False, tracking_data_include: bool = True, pff_data_include: bool = False, player_needed: bool = False, game_needed: bool = False, drop_all_na: bool = False,
         data_generator: DataGenerator = None
 ):
-    progress_manager = ProcessManager(disable=False)
     config = DecisionTreeConfig(
         n_estimators=n_estimators, min_samples_split=min_samples_split, min_samples_leaf=min_samples_leaf,
         bootstrap=bootstrap, criterion=criterion, min_impurity_decrease=min_impurity_decrease, oob_score=oob_score,
@@ -223,10 +226,12 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
                 image_plot_loss = gr.Plot(label="Training info plot(loss)")
                 image_plot_acc = gr.Plot(label="Training info plot(accuracy)")
             # close progress for image plot only
+            user_scheduler = gr.State(None)
             t_event = btn_train.click(fn=lambda *x: (yield from train_nn(*x, data_generator=data_generator)), show_progress="minimal",
-                                      inputs=[x_cols, y_col, num_classes, model, optimizer, criterion, epochs, batch_size, learning_rate, split_ratio, k_fold, gpu, norm, tracking_data_include,
+                                      inputs=[user_scheduler, x_cols, y_col, num_classes, model, optimizer, criterion, epochs, batch_size, learning_rate, split_ratio, k_fold, gpu, norm,
+                                              tracking_data_include,
                                               pff_data_include, player_needed, game_needed, drop_all_na],
-                                      outputs=[info, image_plot_loss, image_plot_acc])
+                                      outputs=[info, image_plot_loss, image_plot_acc, user_scheduler])
             btn_stop.click(fn=None, cancels=[t_event])
     with gr.Row():
         with gr.Column():
@@ -238,8 +243,8 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
             feature_analysis = gr.DataFrame(label="Feature Analysis")
             heat_map = gr.Gallery(label="Heat Map")
             # btn_analysis.click(fn=call_feature_analysis, inputs=[x_cols, gradient_test_limit], outputs=[feature_analysis])
-            btn_analysis.click(fn=lambda *x: call_feature_analysis_target(x[0], sorted(full_col[x[1]].astype(str).astype('category').unique()), x[2], x[3]),
-                               inputs=[x_cols, y_col, labels_to_test, gradient_test_limit],
+            btn_analysis.click(fn=lambda *x: call_feature_analysis_target(x[-1], x[0], sorted(full_col[x[1]].astype(str).astype('category').unique()), x[2], x[3]),
+                               inputs=[x_cols, y_col, labels_to_test, gradient_test_limit, user_scheduler],
                                outputs=[feature_analysis, heat_map])
 
             def get_labels(col_name):
@@ -256,21 +261,21 @@ def nn_ui(columns, data_generator, full_col, config_dir='configs/nn'):
             with gr.Row():
                 ranges_dataset = gr.Markdown(f"- Dataset Range: 0 - ?")
                 btn_get_range = gr.Button("Get Range")
-                btn_get_range.click(fn=lambda x: gr.Markdown(f"- Dataset Range: 0 - {len(scheduler.dataset)}"), outputs=[ranges_dataset])
+                btn_get_range.click(fn=lambda scheduler: gr.Markdown(f"- Dataset Range: 0 - {len(scheduler.dataset)}"), inputs=[user_scheduler], outputs=[ranges_dataset])
             with gr.Row():
                 lmt_rand = gr.Number(label="Random Limit Numbers", value=20)
                 index_rand = gr.Button("Random Indexes")
-                index_rand.click(fn=lambda x: ', '.join(map(str, np.random.randint(0, len(scheduler.dataset), x).tolist())), inputs=[lmt_rand], outputs=[index_of_data])
+                index_rand.click(fn=lambda *x: ', '.join(map(str, np.random.randint(0, len(x[0].dataset), x[1]).tolist())), inputs=[user_scheduler, lmt_rand], outputs=[index_of_data])
             btn_load_detail = gr.Button("Load Detail", variant="primary")
             input_preview = gr.DataFrame(label="Input Preview")
             correct_result = gr.Label(label="Correct Result")
-            btn_load_detail.click(fn=get_data, inputs=[index_of_data, x_cols, y_col], outputs=[input_preview, correct_result])
+            btn_load_detail.click(fn=get_data, inputs=[user_scheduler, index_of_data, x_cols, y_col], outputs=[input_preview, correct_result])
             result_confidence = gr.DataFrame(label="Result Confidence")
             result_acc = gr.Label(label="Result Accuracy")
             btn_predict = gr.Button("Predict", variant="primary")
             confidence_figs = gr.Gallery(label="Confidence Figs")
-            btn_predict.click(fn=lambda *x: predict_nn(*x[:1], labels=sorted(full_col[x[1]].astype(str).dropna().astype('category').unique())),
-                              inputs=[index_of_data, y_col], outputs=[result_confidence, result_acc, confidence_figs])
+            btn_predict.click(fn=lambda *x: predict_nn(*x[:2], labels=sorted(full_col[x[2]].astype(str).dropna().astype('category').unique())),
+                              inputs=[user_scheduler, index_of_data, y_col], outputs=[result_confidence, result_acc, confidence_figs])
 
 
 def rf_ui(columns, data_generator, full_col, config_dir='configs/rf'):
